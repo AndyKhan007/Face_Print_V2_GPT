@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>FacePrint V2 — Bio Attendance System</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+:root{--bg:#101113;--card:#1c1c1e;--accent:#32de84;--muted:#94a3b8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f8fafc;font-family:Roboto,sans-serif}
+.card{background:var(--card);border:1px solid #27272a;border-radius:18px;box-shadow:0 18px 45px rgba(0,0,0,.28)}
+.btn{border-radius:12px;padding:.8rem 1rem;font-weight:700;transition:.2s}.btn:hover{filter:brightness(1.08)}
+.video-wrap{position:relative;background:#000;border-radius:16px;overflow:hidden;aspect-ratio:4/3}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
+.badge{border:1px solid #3f3f46;border-radius:999px;padding:.25rem .6rem;font-size:.75rem}
+.hidden{display:none!important}
+</style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+<header class="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur p-4 flex justify-between items-center">
+  <div class="font-bold tracking-wide text-emerald-400"><i class="fa-solid fa-fingerprint mr-2"></i>FacePrint V2</div>
+  <div class="flex gap-3 items-center">
+    <span id="session-badge" class="badge text-slate-400">Public</span>
+    <span id="clock" class="font-mono text-xs text-slate-400"></span>
+  </div>
+</header>
+
+<main class="flex-1 p-4 flex items-center justify-center">
+<section id="home" class="card w-full max-w-md p-7 space-y-5">
+  <div class="text-center">
+    <div class="mx-auto mb-4 w-20 h-20 rounded-full border border-emerald-400/50 bg-emerald-400/10 flex items-center justify-center text-emerald-400 text-3xl">
+      <i class="fa-solid fa-face-smile"></i>
+    </div>
+    <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V2 — server-side verification</p>
+  </div>
+
+  <div class="space-y-3">
+    <button class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
+      <i class="fa-solid fa-right-to-bracket mr-2"></i>FacePrint In
+    </button>
+    <button class="btn w-full bg-zinc-800 border border-zinc-700" onclick="startAttendance('out')">
+      <i class="fa-solid fa-right-from-bracket mr-2 text-emerald-400"></i>FacePrint Out
+    </button>
+    <button class="btn w-full bg-zinc-800 border border-zinc-700" onclick="showUpdate()">
+      <i class="fa-solid fa-file-pen mr-2 text-emerald-400"></i>Update Dokumen & Data
+    </button>
+    <button class="btn w-full bg-zinc-900 border border-zinc-700" onclick="showAdminLogin()">
+      <i class="fa-solid fa-shield-halved mr-2 text-emerald-400"></i>Login Admin / Pendaftaran
+    </button>
+  </div>
+</section>
+
+<section id="scanner" class="hidden card w-full max-w-2xl p-5 space-y-4">
+  <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+    <h2 id="scanner-title" class="font-bold text-lg">FacePrint In</h2>
+    <button onclick="goHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
+  </div>
+
+  <div class="video-wrap">
+    <video id="scan-video" autoplay playsinline muted></video>
+    <canvas id="scan-canvas"></canvas>
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div class="w-64 h-64 rounded-full border-2 border-dashed border-emerald-400/80"></div>
+    </div>
+    <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs">
+      <span id="scan-status">Mempersiapkan kamera...</span>
+    </div>
+  </div>
+
+  <div id="challenge-box" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+    <div class="text-xs text-slate-400">Liveness challenge</div>
+    <div id="challenge-text" class="font-bold text-emerald-400 mt-1"></div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-3 text-sm">
+    <div class="bg-zinc-900 rounded-xl p-3"><span class="text-slate-400 block">GPS</span><b id="gps-status">Mengecek...</b></div>
+    <div class="bg-zinc-900 rounded-xl p-3"><span class="text-slate-400 block">Face</span><b id="face-status">Belum diverifikasi</b></div>
+  </div>
+
+  <button id="btn-attendance" class="btn w-full bg-emerald-400 text-black disabled:opacity-40" onclick="submitAttendance()" disabled>
+    Proses Absen
+  </button>
+</section>
+
+<section id="admin-login" class="hidden card w-full max-w-md p-7 space-y-5">
+  <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+    <h2 class="font-bold">Login Administrator</h2>
+    <button onclick="goHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
+  </div>
+  <form onsubmit="loginAdmin(event)" class="space-y-4">
+    <input id="login-user" required class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Username">
+    <input id="login-pass" required type="password" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Password">
+    <button class="btn w-full bg-emerald-400 text-black">Masuk</button>
+  </form>
+</section>
+
+<section id="registration" class="hidden card w-full max-w-2xl p-5 space-y-5">
+  <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+    <h2 class="font-bold">Pendaftaran FacePrint V2</h2>
+    <button onclick="goHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-3">
+    <input id="reg-username" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Username">
+    <input id="reg-password" type="password" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Password awal">
+    <input id="reg-ic" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="No. IC">
+    <input id="reg-name" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Nama lengkap">
+    <input id="reg-phone" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="No. telefon">
+    <input id="reg-phone2" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="No. telefon 2">
+    <select id="reg-role" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3">
+      <option value="user">User</option><option value="admin">Admin</option>
+    </select>
+  </div>
+
+  <div class="video-wrap">
+    <video id="reg-video" autoplay playsinline muted></video>
+    <canvas id="reg-canvas"></canvas>
+    <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs text-center">
+      <span id="pose-text">Langkah 1/7: Hadap depan</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="flex justify-between text-xs text-slate-400 mb-1">
+      <span id="pose-progress">0 / 7</span><span id="pose-percent">0%</span>
+    </div>
+    <div class="h-2 rounded-full bg-zinc-800 overflow-hidden">
+      <div id="pose-bar" class="h-full bg-emerald-400" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="bg-zinc-900 rounded-xl p-3 text-xs text-slate-400">
+    <b class="text-emerald-400">Quality gate:</b> satu wajah, ukuran cukup, pose stabil, dan kualitas gambar memadai.
+  </div>
+
+  <button id="btn-pose" class="btn w-full bg-emerald-400 text-black" onclick="capturePose()">
+    Ambil Sampel Pose
+  </button>
+</section>
+
+<section id="update" class="hidden card w-full max-w-2xl p-5 space-y-5">
+  <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
+    <h2 class="font-bold">Update Dokumen & Data</h2>
+    <button onclick="goHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
+  </div>
+
+  <div id="update-start" class="text-center space-y-4">
+    <p class="text-slate-300">Lakukan verifikasi wajah sebelum mengubah data.</p>
+    <button class="btn bg-emerald-400 text-black" onclick="startUpdateScan()">Mulai Verifikasi</button>
+  </div>
+
+  <div id="update-scanner" class="hidden space-y-4">
+    <div class="video-wrap">
+      <video id="update-video" autoplay playsinline muted></video>
+      <canvas id="update-canvas"></canvas>
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div class="w-64 h-64 rounded-full border-2 border-dashed border-emerald-400"></div>
+      </div>
+      <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs">
+        <span id="update-status">Mempersiapkan...</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="update-form" class="hidden space-y-4">
+    <div class="grid md:grid-cols-2 gap-3 bg-zinc-900 rounded-xl p-4">
+      <div><span class="text-xs text-slate-400">IC</span><div id="up-ic" class="font-mono"></div></div>
+      <div><span class="text-xs text-slate-400">Nama</span><div id="up-name" class="font-semibold"></div></div>
+      <div class="md:col-span-2"><span class="text-xs text-slate-400">Alamat</span><div id="up-address"></div></div>
+    </div>
+    <input id="up-phone" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="No. telefon">
+    <input id="up-phone2" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="No. telefon 2">
+    <input id="up-file1" type="file" accept="image/*" class="w-full text-sm">
+    <input id="up-file2" type="file" accept="image/*" class="w-full text-sm">
+    <button class="btn w-full bg-emerald-400 text-black" onclick="saveUpdate()">Simpan Perubahan</button>
+  </div>
+</section>
+</main>
+
+<footer class="text-center text-xs text-slate-600 border-t border-zinc-900 p-4">FacePrint V2 • Server-side biometric decision</footer>
+
+<script>
+/* ============================================================
+ * CONFIG
+ * ========================================================== */
+const API_URL = "https://script.google.com/macros/s/AKfycbx7ZnGxtPC1mMq6d-f4AUcCNAWbIjGJTF5hqs1hHnvbhOU2NGvFW7EF1rn71qeCcu_n/exec";
+const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
+
+const CFG = {
+  targetFps: 8,
+  minDetectorConfidence: 0.45,
+  minFacePixels: 85,
+  minQuality: 0.70,
+  poseStableMs: 450,
+  blinkClosedEar: 0.20,
+  blinkOpenEar: 0.25,
+  yawThreshold: 15,
+  pitchThreshold: 12
+};
+
+let authToken = localStorage.getItem('faceprint_v2_token') || '';
+let currentUser = null;
+let faceSession = null;
+let faceVerification = null;
+let attendanceType = 'in';
+let gps = null;
+let stream = null;
+let regStream = null;
+let updateStream = null;
+let modelsLoaded = false;
+let scannerRunning = false;
+let updateScannerRunning = false;
+let registrationRunning = false;
+let currentPose = 0;
+let enrolledSamples = [];
+let poseStableSince = null;
+let currentUpdateUser = null;
+
+/* ============================================================
+ * BASIC UI
+ * ========================================================== */
+
+function $(id){return document.getElementById(id)}
+function show(id){
+  ['home','scanner','admin-login','registration','update'].forEach(x=>$(x).classList.add('hidden'));
+  $(id).classList.remove('hidden');
+}
+function goHome(){
+  stopAllCameras();
+  scannerRunning=false; updateScannerRunning=false; registrationRunning=false;
+  faceSession=null; faceVerification=null; currentUpdateUser=null;
+  show('home');
+}
+function showAdminLogin(){show('admin-login')}
+function showUpdate(){show('update')}
+function updateClock(){
+  const d=new Date();
+  $('clock').textContent=d.toLocaleTimeString('id-ID')+' | '+d.toLocaleDateString('id-ID');
+}
+setInterval(updateClock,1000);updateClock();
+
+function setSessionBadge(){
+  if(authToken && currentUser){
+    $('session-badge').textContent=currentUser.name+' • '+currentUser.role;
+    $('session-badge').className='badge text-emerald-400';
+  } else {
+    $('session-badge').textContent='Public';
+    $('session-badge').className='badge text-slate-400';
+  }
+}
+
+/* ============================================================
+ * API
+ * ========================================================== */
+
+async function api(action,payload={}){
+  if(!API_URL || API_URL.startsWith('GANTI_')) throw new Error('API_URL belum dikonfigurasi.');
+  const body={action,...payload};
+  if(authToken) body.auth_token=authToken;
+
+  const response=await fetch(API_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(body)
+  });
+
+  const result=await response.json();
+  if(!result.success && result.error) throw new Error(result.error);
+  return result;
+}
+
+async function loadModels(){
+  try{
+    await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    modelsLoaded=true;
+  }catch(e){
+    console.error(e);
+    alert('Model AI gagal dimuat.');
+  }
+}
+window.addEventListener('load',loadModels);
+
+/* ============================================================
+ * CAMERA
+ * ========================================================== */
+
+async function openCamera(videoId){
+  const s=await navigator.mediaDevices.getUserMedia({
+    video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},
+    audio:false
+  });
+  $(videoId).srcObject=s;
+  await new Promise(resolve=>{$(videoId).onloadedmetadata=resolve});
+  return s;
+}
+
+function stopStream(s){
+  if(s) s.getTracks().forEach(t=>t.stop());
+}
+
+function stopAllCameras(){
+  stopStream(stream);stream=null;
+  stopStream(regStream);regStream=null;
+  stopStream(updateStream);updateStream=null;
+}
+
+/* ============================================================
+ * FACE QUALITY / LANDMARKS
+ * ========================================================== */
+
+function getBoxQuality(detection,canvas){
+  const box=detection.detection.box;
+  const area=box.width*box.height;
+  const frameArea=canvas.width*canvas.height;
+  const sizeScore=Math.min(1,Math.sqrt(area)/180);
+  const centerX=box.x+box.width/2;
+  const centerY=box.y+box.height/2;
+  const dx=Math.abs(centerX-canvas.width/2)/(canvas.width/2);
+  const dy=Math.abs(centerY-canvas.height/2)/(canvas.height/2);
+  const centerScore=Math.max(0,1-(dx+dy)/2);
+  return Math.max(0,Math.min(1,0.65*sizeScore+0.35*centerScore));
+}
+
+function estimateQuality(detection,video){
+  const box=detection.detection.box;
+  const minSide=Math.min(box.width,box.height);
+  if(minSide<CFG.minFacePixels) return 0.25;
+
+  const boxScore=getBoxQuality(detection,{width:video.videoWidth||640,height:video.videoHeight||480});
+  const confidence=Number(detection.detection.score||0);
+  return Math.max(0,Math.min(1,0.65*confidence+0.35*boxScore));
+}
+
+function eyeEAR(eye){
+  const p=eye.map(x=>({x:x.x,y:x.y}));
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  return (dist(p[1],p[5])+dist(p[2],p[4]))/(2*dist(p[0],p[3]));
+}
+
+function getEyes(landmarks){
+  const pts=landmarks.positions;
+  return {
+    left:pts.slice(36,42),
+    right:pts.slice(42,48)
+  };
+}
+
+function getEyeState(landmarks){
+  const eyes=getEyes(landmarks);
+  const ear=(eyeEAR(eyes.left)+eyeEAR(eyes.right))/2;
+  return {ear,closed:ear<CFG.blinkClosedEar,open:ear>CFG.blinkOpenEar};
+}
+
+/*
+ * Lightweight relative landmark pose estimator.
+ * These values are intentionally treated as guidance/quality signals,
+ * not as cryptographic proof of head pose.
+ */
+function estimatePose(landmarks){
+  const p=landmarks.positions;
+  const nose=p[30], chin=p[8], left=p[2], right=p[14], browL=p[21], browR=p[22];
+  const midX=(left.x+right.x)/2;
+  const faceWidth=Math.max(1,Math.abs(right.x-left.x));
+  const yaw=((nose.x-midX)/faceWidth)*100;
+  const verticalFace=Math.max(1,chin.y-((browL.y+browR.y)/2));
+  const pitch=((nose.y-((browL.y+browR.y)/2))/verticalFace-0.42)*100;
+  const roll=Math.atan2(right.y-left.y,right.x-left.x)*180/Math.PI;
+  return {yaw,pitch,roll};
+}
+
+function poseValid(pose,landmarks){
+  const eyes=getEyeState(landmarks);
+
+  switch(pose){
+    case 0:
+      return Math.abs(estimatePose(landmarks).yaw)<CFG.yawThreshold &&
+             Math.abs(estimatePose(landmarks).pitch)<CFG.pitchThreshold &&
+             eyes.open;
+    case 1:
+      return estimatePose(landmarks).yaw < -CFG.yawThreshold;
+    case 2:
+      return estimatePose(landmarks).yaw > CFG.yawThreshold;
+    case 3:
+      return estimatePose(landmarks).pitch > CFG.pitchThreshold;
+    case 4:
+      return estimatePose(landmarks).pitch < -CFG.pitchThreshold;
+    case 5:
+      return eyes.closed;
+    case 6:
+      return eyes.open;
+    default:return false;
+  }
+}
+
+const POSES=[
+  'Langkah 1/7: Hadap depan',
+  'Langkah 2/7: Menoleh ke kiri',
+  'Langkah 3/7: Menoleh ke kanan',
+  'Langkah 4/7: Menunduk',
+  'Langkah 5/7: Mendongak',
+  'Langkah 6/7: Pejamkan mata',
+  'Langkah 7/7: Buka mata'
+];
+
+/* ============================================================
+ * LIVENESS
+ * ========================================================== */
+
+async function runLiveness(videoId,statusId,challenge){
+  const video=$(videoId);
+  let current=0;
+  let start=performance.now();
+  let lastFrame=performance.now();
+  let blinkWasClosed=false;
+
+  $('challenge-box').classList.remove('hidden');
+  $('challenge-text').textContent=challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
+
+  while(current<challenge.length){
+    if(!scannerRunning && videoId==='scan-video') throw new Error('Scanner dihentikan.');
+    if(!updateScannerRunning && videoId==='update-video') throw new Error('Scanner dihentikan.');
+
+    const detection=await faceapi.detectSingleFace(video,new faceapi.SsdMobilenetv1Options({minConfidence:CFG.minDetectorConfidence}))
+      .withFaceLandmarks();
+
+    if(!detection){
+      $(statusId).textContent='Wajah tidak terdeteksi';
+      await sleep(100);
+      continue;
+    }
+
+    const pose=estimatePose(detection.landmarks);
+    const eyes=getEyeState(detection.landmarks);
+    const step=challenge[current];
+
+    let ok=false;
+    if(step==='LEFT') ok=pose.yaw < -CFG.yawThreshold;
+    if(step==='RIGHT') ok=pose.yaw > CFG.yawThreshold;
+    if(step==='BLINK'){
+      if(eyes.closed) blinkWasClosed=true;
+      if(blinkWasClosed && eyes.open) ok=true;
+    }
+
+    $(statusId).textContent='Liveness: '+labelChallenge(step);
+
+    if(ok){
+      current++;
+      blinkWasClosed=false;
+      start=performance.now();
+      await sleep(350);
+    }else if(performance.now()-start>15000){
+      throw new Error('Liveness timeout. Silakan ulangi.');
+    }
+
+    await sleep(80);
+  }
+
+  return {pass:true,steps_completed:challenge};
+}
+
+function labelChallenge(x){
+  return x==='LEFT'?'Lihat kiri':x==='RIGHT'?'Lihat kanan':'Kedip';
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+/* ============================================================
+ * FACE SESSION / VERIFICATION
+ * ========================================================== */
+
+async function newFaceSession(){
+  faceSession=await api('face_session');
+  return faceSession;
+}
+
+async function captureProbe(videoId){
+  const video=$(videoId);
+  const detection=await faceapi.detectSingleFace(
+    video,
+    new faceapi.SsdMobilenetv1Options({minConfidence:CFG.minDetectorConfidence})
+  ).withFaceLandmarks().withFaceDescriptor();
+
+  if(!detection) throw new Error('Wajah tidak terdeteksi.');
+  const quality=estimateQuality(detection,video);
+  if(quality<CFG.minQuality) throw new Error('Kualitas wajah terlalu rendah.');
+
+  return {
+    descriptor:Array.from(detection.descriptor),
+    quality
+  };
+}
+
+async function verifyCurrentFace(videoId,statusId){
+  if(!faceSession) await newFaceSession();
+
+  const live=await runLiveness(videoId,statusId,faceSession.challenge);
+  const probe=await captureProbe(videoId);
+
+  faceVerification=await api('face_verify',{
+    face_session_id:faceSession.face_session_id,
+    descriptor:probe.descriptor,
+    quality:{score:probe.quality},
+    liveness:{
+      result:'PASS',
+      challenge_id:faceSession.challenge_id,
+      steps_completed:live.steps_completed
+    }
+  });
+
+  return faceVerification;
+}
+
+/* ============================================================
+ * ATTENDANCE
+ * ========================================================== */
+
+function startAttendance(type){
+  attendanceType=type;
+  if(!modelsLoaded){alert('Model AI belum siap.');return}
+  show('scanner');
+  $('scanner-title').textContent=type==='in'?'FacePrint In':'FacePrint Out';
+  $('scan-status').textContent='Mempersiapkan...';
+  $('face-status').textContent='Belum diverifikasi';
+  $('btn-attendance').disabled=true;
+  startAttendanceScanner();
+  getGPS();
+}
+
+async function startAttendanceScanner(){
+  try{
+    scannerRunning=true;
+    stream=await openCamera('scan-video');
+    const session=await newFaceSession();
+    $('challenge-box').classList.remove('hidden');
+    $('challenge-text').textContent=session.challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
+
+    const result=await verifyCurrentFace('scan-video','scan-status');
+
+    if(!scannerRunning)return;
+
+    $('face-status').textContent='✓ Terverifikasi';
+    $('face-status').className='font-bold text-emerald-400';
+    $('scan-status').textContent='Wajah terverifikasi';
+    $('btn-attendance').disabled=false;
+    stopStream(stream);stream=null;
+    scannerRunning=false;
+  }catch(e){
+    console.error(e);
+    if(scannerRunning) alert(e.message||'Verifikasi gagal.');
+    scannerRunning=false;
+    stopStream(stream);stream=null;
+  }
+}
+
+function getGPS(){
+  $('gps-status').textContent='Mengecek GPS...';
+  if(!navigator.geolocation){
+    $('gps-status').textContent='GPS tidak didukung';return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    p=>{
+      gps={
+        latitude:p.coords.latitude,
+        longitude:p.coords.longitude,
+        gps_accuracy:p.coords.accuracy
+      };
+      $('gps-status').textContent='✓ '+Math.round(gps.gps_accuracy)+' m';
+      $('gps-status').className='font-bold text-emerald-400';
+    },
+    e=>{
+      gps=null;
+      $('gps-status').textContent='GPS gagal';
+      $('gps-status').className='font-bold text-red-400';
+    },
+    {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+  );
+}
+
+async function submitAttendance(){
+  if(!faceVerification || !gps || !faceSession){
+    alert('Verifikasi wajah dan GPS belum siap.');return;
+  }
+
+  const btn=$('btn-attendance');
+  btn.disabled=true;btn.textContent='Mengirim...';
+
+  try{
+    const result=await api('absen',{
+      face_session_id:faceVerification.face_session_id,
+      verification_token:faceVerification.verification_token,
+      attendanceType:attendanceType,
+      latitude:gps.latitude,
+      longitude:gps.longitude,
+      gps_accuracy:gps.gps_accuracy,
+      face_distance:faceVerification.distance,
+      device_info:navigator.userAgent
+    });
+
+    await Swal.fire({
+      icon:'success',
+      title:'Absensi Berhasil',
+      background:'#1c1c1e',
+      color:'#fff',
+      confirmButtonColor:'#32de84',
+      html:`<div style="line-height:1.8;text-align:left">
+        <b>Nama:</b> ${escapeHtml(result.user.name)}<br>
+        <b>Tipe:</b> ${result.type}<br>
+        <b>Jarak:</b> ${result.distance_meters} meter<br>
+        <b>Waktu server:</b> ${escapeHtml(result.timestamp_server)}
+      </div>`
+    });
+
+    goHome();
+  }catch(e){
+    alert(e.message||'Absensi gagal.');
+    btn.disabled=false;btn.textContent='Proses Absen';
+  }
+}
+
+/* ============================================================
+ * ADMIN LOGIN / REGISTRATION
+ * ========================================================== */
+
+async function loginAdmin(event){
+  event.preventDefault();
+  try{
+    const result=await api('auth_login',{
+      username:$('login-user').value.trim(),
+      password:$('login-pass').value,
+      device_info:navigator.userAgent
+    });
+
+    authToken=result.token;
+    currentUser=result.user;
+    localStorage.setItem('faceprint_v2_token',authToken);
+    setSessionBadge();
+
+    if(currentUser.role!=='admin') throw new Error('Akun bukan administrator.');
+
+    show('registration');
+    startRegistrationCamera();
+  }catch(e){
+    alert(e.message||'Login gagal.');
+  }
+}
+
+async function startRegistrationCamera(){
+  if(!modelsLoaded){alert('Model AI belum siap.');return}
+  try{
+    registrationRunning=true;
+    regStream=await openCamera('reg-video');
+    resetEnrollment();
+  }catch(e){alert(e.message||'Kamera gagal dibuka.')}
+}
+
+function resetEnrollment(){
+  currentPose=0;
+  enrolledSamples=[];
+  poseStableSince=null;
+  $('pose-text').textContent=POSES[0];
+  $('pose-progress').textContent='0 / 7';
+  $('pose-percent').textContent='0%';
+  $('pose-bar').style.width='0%';
+  $('btn-pose').disabled=false;
+  $('btn-pose').textContent='Ambil Sampel Pose';
+}
+
+async function capturePose(){
+  if(!registrationRunning)return;
+
+  const ic=$('reg-ic').value.trim();
+  const name=$('reg-name').value.trim();
+  if(!ic || !name){alert('Isi IC dan nama terlebih dahulu.');return}
+
+  const video=$('reg-video');
+  const detection=await faceapi.detectSingleFace(
+    video,new faceapi.SsdMobilenetv1Options({minConfidence:CFG.minDetectorConfidence})
+  ).withFaceLandmarks().withFaceDescriptor();
+
+  if(!detection){alert('Wajah tidak terdeteksi.');return}
+
+  const quality=estimateQuality(detection,video);
+  if(quality<CFG.minQuality){
+    alert('Kualitas wajah terlalu rendah. Dekatkan wajah dan pastikan pencahayaan baik.');
+    return;
+  }
+
+  if(!poseValid(currentPose,detection.landmarks)){
+    alert('Pose belum sesuai instruksi. Tahan posisi dan coba lagi.');
+    return;
+  }
+
+  const now=performance.now();
+  if(!poseStableSince)poseStableSince=now;
+
+  if(now-poseStableSince<CFG.poseStableMs){
+    alert('Pertahankan pose sebentar lagi.');
+    return;
+  }
+
+  enrolledSamples.push({
+    pose:poseName(currentPose),
+    descriptor:Array.from(detection.descriptor)
+  });
+
+  currentPose++;
+  poseStableSince=null;
+
+  const pct=Math.round(currentPose/7*100);
+  $('pose-progress').textContent=currentPose+' / 7';
+  $('pose-percent').textContent=pct+'%';
+  $('pose-bar').style.width=pct+'%';
+
+  if(currentPose<7){
+    $('pose-text').textContent=POSES[currentPose];
+    return;
+  }
+
+  $('btn-pose').disabled=true;
+  $('btn-pose').textContent='Menyimpan...';
+
+  try{
+    const user=await api('register_user',{
+      username:$('reg-username').value.trim(),
+      password:$('reg-password').value,
+      ic:ic,
+      name:name,
+      phone:$('reg-phone').value.trim(),
+      phone2:$('reg-phone2').value.trim(),
+      role:$('reg-role').value,
+      device_info:navigator.userAgent
+    });
+
+    await api('enroll_biometric',{
+      user_id:user.user.user_id,
+      descriptors:enrolledSamples,
+      quality_score:averageQuality(enrolledSamples),
+      liveness_method:'active-challenge',
+      device_info:navigator.userAgent
+    });
+
+    alert('Pendaftaran V2 berhasil.');
+    resetEnrollment();
+    $('reg-username').value='';
+    $('reg-password').value='';
+    $('reg-ic').value='';
+    $('reg-name').value='';
+    $('reg-phone').value='';
+    $('reg-phone2').value='';
+    goHome();
+  }catch(e){
+    alert(e.message||'Pendaftaran gagal.');
+    resetEnrollment();
+  }
+}
+
+function poseName(i){
+  return ['front','left','right','down','up','eyes_closed','eyes_open'][i];
+}
+function averageQuality(samples){
+  // Enrollment quality is validated per sample; use a conservative baseline.
+  return CFG.minQuality;
+}
+
+/* ============================================================
+ * UPDATE DOCUMENT
+ * ========================================================== */
+
+async function startUpdateScan(){
+  if(!modelsLoaded){alert('Model AI belum siap.');return}
+  show('update');
+  $('update-start').classList.add('hidden');
+  $('update-scanner').classList.remove('hidden');
+
+  try{
+    updateScannerRunning=true;
+    updateStream=await openCamera('update-video');
+    faceSession=await newFaceSession();
+    const result=await verifyCurrentFace('update-video','update-status');
+
+    stopStream(updateStream);updateStream=null;
+    updateScannerRunning=false;
+
+    const data=await api('search_verified_user',{
+      face_session_id:result.face_session_id,
+      verification_token:result.verification_token
+    });
+
+    currentUpdateUser=data.data;
+    $('up-ic').textContent=currentUpdateUser.ic;
+    $('up-name').textContent=currentUpdateUser.name;
+    $('up-address').textContent=currentUpdateUser.alamat||'-';
+    $('up-phone').value=currentUpdateUser.noTelpon==='-'?'':currentUpdateUser.noTelpon;
+    $('up-phone2').value=currentUpdateUser.noTelpon2==='-'?'':currentUpdateUser.noTelpon2;
+
+    $('update-scanner').classList.add('hidden');
+    $('update-form').classList.remove('hidden');
+  }catch(e){
+    stopStream(updateStream);updateStream=null;
+    updateScannerRunning=false;
+    alert(e.message||'Verifikasi gagal.');
+    goHome();
+  }
+}
+
+async function saveUpdate(){
+  if(!currentUpdateUser || !faceSession || !faceVerification)return;
+
+  try{
+    const f1=await optionalFile($('up-file1').files[0]);
+    const f2=await optionalFile($('up-file2').files[0]);
+
+    await api('update_document_data',{
+      face_session_id:faceVerification.face_session_id,
+      verification_token:faceVerification.verification_token,
+      noTelpon:$('up-phone').value.trim(),
+      noTelpon2:$('up-phone2').value.trim(),
+      file1:f1,
+      file2:f2,
+      device_info:navigator.userAgent
+    });
+
+    alert('Perubahan berhasil disimpan.');
+    goHome();
+  }catch(e){alert(e.message||'Update gagal.')}
+}
+
+function optionalFile(file){
+  if(!file)return Promise.resolve(null);
+  return new Promise((resolve,reject)=>{
+    if(file.size>5*1024*1024){reject(new Error('File terlalu besar.'));return}
+    const reader=new FileReader();
+    reader.onload=()=>resolve({
+      base64:String(reader.result).split(',')[1],
+      mimeType:file.type
+    });
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ============================================================
+ * HELPERS
+ * ========================================================== */
+
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g,c=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+window.addEventListener('beforeunload',()=>stopAllCameras());
+
+setSessionBadge();
+</script>
+</body>
+</html>
