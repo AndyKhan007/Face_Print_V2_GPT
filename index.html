@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V2.2.0 — Bio Attendance System</title>
+<title>FacePrint V2.2.1 — Bio Attendance System</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,36 +26,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 @keyframes spin{to{transform:rotate(360deg)}}
 #global-loading{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:9999;display:none;align-items:center;justify-content:center}
 #global-loading.active{display:flex}
-
-.pose-meter{
-  position:relative;height:26px;border-radius:999px;
-  background:#18181b;border:1px solid #27272a;overflow:hidden;
-  box-shadow:inset 0 2px 6px rgba(0,0,0,.6);
-}
-.pose-meter-fill{
-  position:absolute;top:0;left:0;bottom:0;width:0%;
-  background:linear-gradient(90deg,#ef4444 0%,#f97316 35%,#facc15 60%,#84cc16 80%,#32de84 100%);
-  background-size:300px 100%;transition:width 0.08s linear;
-}
-.pose-meter-fill.locked{
-  box-shadow:0 0 18px 2px rgba(50,222,132,.85), inset 0 0 12px rgba(255,255,255,.35);
-  animation:lockedPulse .5s ease-in-out;
-}
+.pose-meter{position:relative;height:26px;border-radius:999px;background:#18181b;border:1px solid #27272a;overflow:hidden;box-shadow:inset 0 2px 6px rgba(0,0,0,.6);}
+.pose-meter-fill{position:absolute;top:0;left:0;bottom:0;width:0%;background:linear-gradient(90deg,#ef4444 0%,#f97316 35%,#facc15 60%,#84cc16 80%,#32de84 100%);background-size:300px 100%;transition:width 0.08s linear;}
+.pose-meter-fill.locked{box-shadow:0 0 18px 2px rgba(50,222,132,.85), inset 0 0 12px rgba(255,255,255,.35);animation:lockedPulse .5s ease-in-out;}
 @keyframes lockedPulse{0%{filter:brightness(1)}50%{filter:brightness(1.45)}100%{filter:brightness(1)}}
-.pose-meter-threshold{
-  position:absolute;top:-2px;bottom:-2px;left:80%;width:3px;
-  background:rgba(255,255,255,.85);border-radius:2px;
-  box-shadow:0 0 8px rgba(255,255,255,.7);z-index:2;
-}
-.pose-meter-label{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-weight:800;font-size:12px;letter-spacing:.5px;color:#fff;
-  text-shadow:0 1px 3px rgba(0,0,0,.85);z-index:3;font-variant-numeric:tabular-nums;
-}
-.pose-hint{
-  display:flex;align-items:center;gap:.5rem;justify-content:center;
-  font-weight:700;transition:color .2s;min-height:2rem;
-}
+.pose-meter-threshold{position:absolute;top:-2px;bottom:-2px;left:80%;width:3px;background:rgba(255,255,255,.85);border-radius:2px;box-shadow:0 0 8px rgba(255,255,255,.7);z-index:2;}
+.pose-meter-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;letter-spacing:.5px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.85);z-index:3;font-variant-numeric:tabular-nums;}
+.pose-hint{display:flex;align-items:center;gap:.5rem;justify-content:center;font-weight:700;transition:color .2s;min-height:2rem;}
 .pose-arrow{display:inline-block;font-size:1.6rem;animation:arrowBounce 1.1s ease-in-out infinite}
 @keyframes arrowBounce{0%,100%{transform:translateX(0)}50%{transform:translateX(-6px)}}
 .pose-arrow.right{animation:arrowBounceR 1.1s ease-in-out infinite}
@@ -70,23 +47,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 .pose-step-dot.done{background:#32de84;box-shadow:0 0 8px rgba(50,222,132,.55)}
 .pose-step-dot.active{background:#facc15;box-shadow:0 0 8px rgba(250,204,21,.6);animation:dotPulse 1s ease-in-out infinite}
 @keyframes dotPulse{0%,100%{opacity:1}50%{opacity:.45}}
-.blink-counter{
-  display:inline-flex;align-items:center;gap:.4rem;
-  padding:.25rem .7rem;border-radius:999px;
-  background:rgba(50,222,132,.15);border:1px solid rgba(50,222,132,.4);
-  font-weight:700;font-size:.75rem;color:#32de84;
-}
-.eye-indicator{
-  display:inline-flex;align-items:center;gap:.4rem;
-  padding:.5rem .9rem;border-radius:12px;
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
-  font-size:2rem;transition:.15s;
-}
-.eye-indicator.closed{
-  background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5);
-  transform:scale(1.1);
-  box-shadow:0 0 20px rgba(239,68,68,.6);
-}
+.blink-counter{display:inline-flex;align-items:center;gap:.4rem;padding:.25rem .7rem;border-radius:999px;background:rgba(50,222,132,.15);border:1px solid rgba(50,222,132,.4);font-weight:700;font-size:.75rem;color:#32de84;}
+.eye-indicator{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem .9rem;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);font-size:2rem;transition:.15s;}
+.eye-indicator.closed{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5);transform:scale(1.1);box-shadow:0 0 20px rgba(239,68,68,.6);}
 </style>
 </head>
 
@@ -107,7 +70,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V2.2.0 — server-side verification</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V2.2.1 — server-side verification</p>
   </div>
 
   <div class="space-y-3">
@@ -300,7 +263,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <span id="pose-hint-text">Hadap depan, tatap kamera</span>
     </div>
     <div id="blink-counter-wrap" class="hidden text-center">
-      <span class="blink-counter"><i class="fa-solid fa-eye"></i> Kedip: <b id="blink-counter">0 / 3</b></span>
+      <span class="blink-counter"><i class="fa-solid fa-eye"></i> Kedip: <b id="blink-counter">0 / 1</b></span>
     </div>
   </div>
 
@@ -323,7 +286,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 
   <div class="bg-zinc-900 rounded-xl p-3 text-xs text-slate-400">
-    <b class="text-emerald-400">Tip:</b> Untuk langkah terakhir, berkedip <b>3 kali secara natural</b>. Sistem mendeteksi kedipan cepat (0.1–0.4 detik) dengan baseline mata Anda. Setiap kedip menambah progress sampai penuh, lalu otomatis kembali ke halaman utama.
+    <b class="text-emerald-400">Tip:</b> Untuk langkah terakhir, <b>berkedip 1 kali secara natural</b>. Sistem mendeteksi kedipan cepat (0.1–0.4 detik) dengan baseline mata Anda, lalu otomatis kembali ke halaman utama.
   </div>
 
   <div class="grid grid-cols-2 gap-3">
@@ -403,55 +366,37 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 
 <script>
 /* ============================================================
- * CONFIG — nilai fallback
- * Nilai aktual DITIMPA dari backend via public_config (tab Config).
+ * CONFIG — fallback (akan ditimpa oleh server via public_config)
  * ========================================================== */
-const API_URL = "https://script.google.com/macros/s/AKfycbyL15C6qElTqyC1md88s8_BZhkUddjcRbaSJVOQp5IvwCvqjRnNQVx6U1sZT7kzPAPU/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx3jZbbbgEQJ3qQ3FZhRn9EMB8qcIip225AWXWM--uB-uwbTtY5xRylskVCkSUdvHf3/exec";
 const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
 
 const CFG = {
-  // Detector
   useFastDetector: true,
   detectorInputSize: 320,
   detectorScoreThreshold: 0.4,
   minDetectorConfidence: 0.45,
-
   minFacePixels: 85,
   minQuality: 0.70,
-
-  // Sudut
   yawThreshold: 15,
   pitchThreshold: 12,
-
-  // Front pose dead zone
   frontYawDead: 8,
   frontYawMax: 25,
   frontPitchDead: 6,
   frontPitchMax: 20,
-
-  // Blink
   blinkClosedEar: 0.22,
   blinkOpenEar: 0.24,
-
-  // Auto-lock
   poseLockThreshold: 0.80,
   poseStableMs: 350,
   livenessStableMs: 400,
-
-  // GPS / geofence
   maxRadiusMeters: 500,
   maxGpsAccuracyMeters: 100,
   cooldownSeconds: 30,
-
-  // Face matching (info dari server, tidak dipakai frontend untuk keputusan)
   faceMatchThreshold: 0.60,
   minMatchMargin: 0.05,
-
-  // Blink target
-  blinkTarget: 3
+  blinkTarget: 1
 };
 
-// Variabel mutable — bisa diubah oleh loadServerConfig()
 let BLINK_TARGET = CFG.blinkTarget;
 let ENROLL_MIN = 7;
 let ENROLL_MAX = 20;
@@ -478,13 +423,11 @@ let currentPose = 0;
 let enrolledSamples = [];
 let currentUpdateUser = null;
 
-// Enrollment loop state
 let poseLoopRunning = false;
 let poseStableStart = 0;
 let poseScoreSmoothed = 0;
 let poseLocked = false;
 
-// Blink state (adaptive baseline)
 let blinkProgress = 0;
 let blinkBaselineEar = 0.30;
 let blinkFSMState = 'waiting';
@@ -584,14 +527,12 @@ async function loadServerConfig(){
     const result = await api('public_config');
     const c = result.config || {};
 
-    // === Face matching / quality ===
     if(Number.isFinite(c.min_face_quality))         CFG.minQuality = c.min_face_quality;
     if(Number.isFinite(c.face_match_threshold))     CFG.faceMatchThreshold = c.face_match_threshold;
     if(Number.isFinite(c.min_match_margin))         CFG.minMatchMargin = c.min_match_margin;
     if(Number.isFinite(c.enroll_min_samples))       ENROLL_MIN = c.enroll_min_samples;
     if(Number.isFinite(c.enroll_max_samples))       ENROLL_MAX = c.enroll_max_samples;
 
-    // === Session / geofence ===
     if(Number.isFinite(c.max_radius_meters))        CFG.maxRadiusMeters = c.max_radius_meters;
     if(Number.isFinite(c.max_gps_accuracy_meters))  CFG.maxGpsAccuracyMeters = c.max_gps_accuracy_meters;
     if(Number.isFinite(c.cooldown_seconds))         CFG.cooldownSeconds = c.cooldown_seconds;
@@ -602,14 +543,12 @@ async function loadServerConfig(){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
 
-    // === Detector ===
     if(typeof c.use_fast_detector === 'boolean')    CFG.useFastDetector = c.use_fast_detector;
     if(Number.isFinite(c.detector_input_size))      CFG.detectorInputSize = c.detector_input_size;
     if(Number.isFinite(c.detector_score_threshold)) CFG.detectorScoreThreshold = c.detector_score_threshold;
     if(Number.isFinite(c.min_detector_confidence))  CFG.minDetectorConfidence = c.min_detector_confidence;
     if(Number.isFinite(c.min_face_pixels))          CFG.minFacePixels = c.min_face_pixels;
 
-    // === Pose ===
     if(Number.isFinite(c.yaw_threshold))            CFG.yawThreshold = c.yaw_threshold;
     if(Number.isFinite(c.pitch_threshold))          CFG.pitchThreshold = c.pitch_threshold;
     if(Number.isFinite(c.front_yaw_dead))           CFG.frontYawDead = c.front_yaw_dead;
@@ -617,12 +556,10 @@ async function loadServerConfig(){
     if(Number.isFinite(c.front_pitch_dead))         CFG.frontPitchDead = c.front_pitch_dead;
     if(Number.isFinite(c.front_pitch_max))          CFG.frontPitchMax = c.front_pitch_max;
 
-    // === Blink ===
     if(Number.isFinite(c.blink_closed_ear))         CFG.blinkClosedEar = c.blink_closed_ear;
     if(Number.isFinite(c.blink_open_ear))           CFG.blinkOpenEar = c.blink_open_ear;
-    if(Number.isFinite(c.blink_target))             BLINK_TARGET = c.blink_target;
+    if(Number.isFinite(c.blink_target))             BLINK_TARGET = Math.max(1, c.blink_target);
 
-    // === Auto-lock ===
     if(Number.isFinite(c.pose_lock_threshold))      CFG.poseLockThreshold = c.pose_lock_threshold;
     if(Number.isFinite(c.pose_stable_ms))           CFG.poseStableMs = c.pose_stable_ms;
     if(Number.isFinite(c.liveness_stable_ms))       CFG.livenessStableMs = c.liveness_stable_ms;
@@ -638,7 +575,8 @@ async function loadServerConfig(){
       blinkTarget: BLINK_TARGET,
       blinkClosedEar: CFG.blinkClosedEar,
       useFastDetector: CFG.useFastDetector,
-      maxRadiusMeters: CFG.maxRadiusMeters
+      maxRadiusMeters: CFG.maxRadiusMeters,
+      livenessStableMs: CFG.livenessStableMs
     });
   }catch(e){
     console.warn('Server config gagal dimuat, pakai default:', e.message);
@@ -726,7 +664,6 @@ function estimateQuality(detection,video){
   const box=detection.detection.box;
   const minSide=Math.min(box.width,box.height);
   if(minSide<CFG.minFacePixels) return 0.25;
-
   const boxScore=getBoxQuality(detection,{width:video.videoWidth||640,height:video.videoHeight||480});
   const confidence=Number(detection.detection.score||0);
   return Math.max(0,Math.min(1,0.65*confidence+0.35*boxScore));
@@ -784,13 +721,11 @@ function computePoseScore(poseIndex, landmarks, quality){
     case 0: {
       const yawAbs   = Math.abs(pose.yaw);
       const pitchAbs = Math.abs(pose.pitch);
-
       const yawScore = yawAbs <= CFG.frontYawDead ? 1 :
         Math.max(0, 1 - (yawAbs - CFG.frontYawDead) / (CFG.frontYawMax - CFG.frontYawDead));
       const pitchScore = pitchAbs <= CFG.frontPitchDead ? 1 :
         Math.max(0, 1 - (pitchAbs - CFG.frontPitchDead) / (CFG.frontPitchMax - CFG.frontPitchDead));
       const eyeScore = eyes.open ? 1 : 0.6;
-
       raw = yawScore * 0.45 + pitchScore * 0.35 + eyeScore * 0.20;
       break;
     }
@@ -814,7 +749,7 @@ const POSES=[
   'Langkah 3/6: Menoleh ke kanan',
   'Langkah 4/6: Menunduk',
   'Langkah 5/6: Mendongak',
-  'Langkah 6/6: Berkedip 3 kali'
+  'Langkah 6/6: Berkedip 1 kali'
 ];
 
 const POSE_HINTS = [
@@ -823,7 +758,7 @@ const POSE_HINTS = [
   { arrow:'<i class="fa-solid fa-arrow-right-long"></i>', cls:'right', text:'Menoleh ke KANAN layar' },
   { arrow:'<i class="fa-solid fa-arrow-down-long"></i>', cls:'down',   text:'Tundukkan kepala' },
   { arrow:'<i class="fa-solid fa-arrow-up-long"></i>', cls:'up',       text:'Dongakkan kepala' },
-  { arrow:'<i class="fa-solid fa-eye-slash"></i>', cls:'blink',        text:'Berkedip 3 kali (natural)' }
+  { arrow:'<i class="fa-solid fa-eye-slash"></i>', cls:'blink',        text:'Berkedip sekali' }
 ];
 
 const LIVENESS_HINTS = {
@@ -833,17 +768,35 @@ const LIVENESS_HINTS = {
 };
 
 /* ============================================================
- * LIVENESS
+ * LIVENESS — V2.2.1 dengan PROGRESS-BASED HOLD
+ *
+ * Perubahan dari V2.2.0:
+ * - Progress bar naik pelan saat skor tinggi, turun pelan saat turun
+ * - Grace period 200ms: detection loss sesaat tidak reset progress
+ * - Bar menampilkan progress sebenarnya (bukan skor instan)
  * ========================================================== */
 
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
   let current = 0;
-  let stableStart = 0;
+
+  // Progress-based hold
+  let holdProgress = 0;
+  let lastFrameTime = performance.now();
+
+  // Blink state
   let blinkBaseline = 0.30;
   let blinkFSM = 'waiting';
   let blinkClosedAt = 0;
   let blinkLastAt = 0;
+
+  // Grace period
+  const GRACE_MS = 250;
+  let lastGoodFrame = performance.now();
+
+  // Rate: hold penuh dalam livenessStableMs, decay 3x lebih lambat
+  const holdRatePerMs  = 1 / Math.max(250, CFG.livenessStableMs);
+  const decayRatePerMs = 1 / (Math.max(250, CFG.livenessStableMs) * 3);
 
   if (uiPrefix === 'scan') {
     $('challenge-box').classList.remove('hidden');
@@ -857,58 +810,87 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     if(!scannerRunning && videoId==='scan-video') throw new Error('Scanner dihentikan.');
     if(!updateScannerRunning && videoId==='update-video') throw new Error('Scanner dihentikan.');
 
+    const frameStart = performance.now();
+    const dt = Math.max(16, frameStart - lastFrameTime);
+    lastFrameTime = frameStart;
+
     const detection = await detectFaceLandmarks(video);
 
     if(!detection){
+      // Grace period — hanya decay jika lama tidak terdeteksi
+      if (frameStart - lastGoodFrame > GRACE_MS) {
+        holdProgress = Math.max(0, holdProgress - decayRatePerMs * dt);
+      }
       $(statusId).textContent = 'Wajah tidak terdeteksi';
-      updateLivenessUI(uiPrefix, 0, 'Wajah tidak terdeteksi', current, challenge.length);
-      stableStart = 0;
-      await sleep(60);
+      updateLivenessUI(uiPrefix, holdProgress, 'Wajah tidak terdeteksi', current, challenge.length);
+      await sleep(50);
       continue;
     }
 
+    lastGoodFrame = frameStart;
     const step = challenge[current];
     const pose = estimatePose(detection.landmarks);
     const eyes = getEyeState(detection.landmarks);
-    const now = performance.now();
+    const now = frameStart;
 
     let score = 0;
     let advanced = false;
 
     if(step === 'BLINK'){
+      // Adaptive baseline
       if (eyes.ear > blinkBaseline) blinkBaseline = blinkBaseline * 0.9 + eyes.ear * 0.1;
-      const closeTh = Math.min(0.28, blinkBaseline * 0.75);
+      const closeTh  = Math.min(0.28, blinkBaseline * 0.75);
       const reopenTh = Math.max(0.22, blinkBaseline * 0.85);
 
-      if (now - blinkLastAt > 300) {
+      if (now - blinkLastAt > 250) {
         if (blinkFSM === 'waiting') {
-          if (eyes.ear < closeTh) { blinkFSM = 'closed'; blinkClosedAt = now; }
-          score = 0.3;
+          if (eyes.ear < closeTh) {
+            blinkFSM = 'closed';
+            blinkClosedAt = now;
+            holdProgress = 0.5;
+          } else {
+            holdProgress = 0;
+          }
         } else {
+          // Tunggu mata buka
           if (eyes.ear > reopenTh) {
             blinkFSM = 'waiting';
             blinkLastAt = now;
+            holdProgress = 1;
             advanced = true;
-            score = 1;
-          } else if (now - blinkClosedAt > 1500) {
+          } else if (now - blinkClosedAt > 1200) {
+            // Timeout tutup terlalu lama
             blinkFSM = 'waiting';
+            holdProgress = 0;
           } else {
-            score = 0.6;
+            holdProgress = 0.75;
           }
         }
+      } else {
+        holdProgress = 1;
       }
-    } else if(step === 'LEFT'){
-      score = pose.yaw <= 0 ? 0 : Math.min(1, pose.yaw / CFG.yawThreshold);
-      if(score >= 0.80){
-        if(!stableStart) stableStart = now;
-        else if(now - stableStart >= CFG.livenessStableMs) advanced = true;
-      } else stableStart = 0;
-    } else if(step === 'RIGHT'){
-      score = pose.yaw >= 0 ? 0 : Math.min(1, -pose.yaw / CFG.yawThreshold);
-      if(score >= 0.80){
-        if(!stableStart) stableStart = now;
-        else if(now - stableStart >= CFG.livenessStableMs) advanced = true;
-      } else stableStart = 0;
+      score = holdProgress;
+    } else if(step === 'LEFT' || step === 'RIGHT'){
+      let poseScore = 0;
+      if (step === 'LEFT') {
+        poseScore = pose.yaw <= 0 ? 0 : Math.min(1, pose.yaw / CFG.yawThreshold);
+      } else {
+        poseScore = pose.yaw >= 0 ? 0 : Math.min(1, -pose.yaw / CFG.yawThreshold);
+      }
+
+      // Progress-based fill
+      if (poseScore >= 0.75) {
+        // Fill — makin tinggi skor, makin cepat
+        holdProgress = Math.min(1, holdProgress + holdRatePerMs * dt * (0.5 + poseScore * 0.5));
+      } else if (poseScore >= 0.50) {
+        // Hold — tidak naik, tidak turun
+      } else {
+        // Decay lembut
+        holdProgress = Math.max(0, holdProgress - decayRatePerMs * dt);
+      }
+
+      if (holdProgress >= 1) advanced = true;
+      score = holdProgress;
     }
 
     $(statusId).textContent = 'Liveness: ' + labelChallenge(step);
@@ -916,14 +898,15 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
 
     if(advanced){
       current++;
-      stableStart = 0;
+      holdProgress = 0;
+      blinkFSM = 'waiting';
       showLivenessLockBadge(uiPrefix);
       await sleep(350);
       hideLivenessLockBadge(uiPrefix);
       updateLivenessUI(uiPrefix, 0, null, current, challenge.length);
     }
 
-    await sleep(35);
+    await sleep(30);
   }
 
   updateLivenessUI(uiPrefix, 1, 'Verifikasi selesai', challenge.length, challenge.length);
