@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V2.1.1 — Bio Attendance System</title>
+<title>FacePrint V2.1.4 — Bio Attendance System</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -46,7 +46,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V2.1.1 — server-side verification</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V2.1.4 — server-side verification</p>
   </div>
 
   <div class="space-y-3">
@@ -248,7 +248,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 /* ============================================================
  * CONFIG
  * ========================================================== */
-const API_URL = "https://script.google.com/macros/s/AKfycbzyHpWb3rK-Fw1IajtzUMGc30MrB41VGdkFmclXXOJ8pMBKuWL58ExMvkwmVK6Vc0WfXw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx8ndKKQLkv3Qq-TpLxbwPMt30OTkMC346lQw0v3mMfve-3YOHZ4k5G1AxXGoEHM_q2/exec";
 const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
 
 // Public thresholds are loaded from the V2 backend so frontend policy cannot drift
@@ -362,7 +362,8 @@ async function loadServerConfig(){
     if(Number.isFinite(c.max_radius_meters)) CFG.maxRadiusMeters=c.max_radius_meters;
     if(Number.isFinite(c.max_gps_accuracy_meters)) CFG.maxGpsAccuracyMeters=c.max_gps_accuracy_meters;
     const v=c.app_version||'2.0.0';
-    document.querySelector('h1')?.nextElementSibling && (document.querySelector('h1').nextElementSibling.textContent='FacePrint V'+v+' — server-side verification');
+    const subtitle=document.querySelector('#home h1 + p');
+    if(subtitle) subtitle.textContent='FacePrint V'+v+' — server-side verification';
   }catch(e){ console.warn('Server config gagal dimuat:',e.message); }
 }
 
@@ -458,11 +459,6 @@ function getEyeState(landmarks){
   return {ear,closed:ear<CFG.blinkClosedEar,open:ear>CFG.blinkOpenEar};
 }
 
-/*
- * Lightweight relative landmark pose estimator.
- * These values are intentionally treated as guidance/quality signals,
- * not as cryptographic proof of head pose.
- */
 function estimatePose(landmarks){
   const p=landmarks.positions;
   const nose=p[30], chin=p[8], left=p[2], right=p[14], browL=p[21], browR=p[22];
@@ -517,7 +513,6 @@ async function runLiveness(videoId,statusId,challenge){
   const video=$(videoId);
   let current=0;
   let start=performance.now();
-  let lastFrame=performance.now();
   let blinkWasClosed=false;
 
   $('challenge-box').classList.remove('hidden');
@@ -846,9 +841,11 @@ async function capturePose(){
     return;
   }
 
+  // PATCHED: store per-sample quality so averageQuality can compute real mean.
   enrolledSamples.push({
     pose:poseName(currentPose),
-    descriptor:Array.from(detection.descriptor)
+    descriptor:Array.from(detection.descriptor),
+    quality:quality
   });
 
   currentPose++;
@@ -907,9 +904,18 @@ async function capturePose(){
 function poseName(i){
   return ['front','left','right','down','up','eyes_closed','eyes_open'][i];
 }
+
+// PATCHED: compute real average of per-sample quality scores.
+// Falls back to CFG.minQuality when sample quality is unavailable.
 function averageQuality(samples){
-  // Enrollment quality is validated per sample; use a conservative baseline.
-  return CFG.minQuality;
+  if(!samples || !samples.length) return CFG.minQuality;
+  let sum=0, count=0;
+  samples.forEach(function(s){
+    if(s && typeof s.quality==='number' && isFinite(s.quality)){
+      sum+=s.quality; count++;
+    }
+  });
+  return count ? (sum/count) : CFG.minQuality;
 }
 
 async function logoutAdmin(){
