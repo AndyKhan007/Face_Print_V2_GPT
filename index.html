@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V2.1.8 — Bio Attendance System</title>
+<title>FacePrint V2.2.0 — Bio Attendance System</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,7 +35,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 .pose-meter-fill{
   position:absolute;top:0;left:0;bottom:0;width:0%;
   background:linear-gradient(90deg,#ef4444 0%,#f97316 35%,#facc15 60%,#84cc16 80%,#32de84 100%);
-  background-size:300px 100%;transition:width 0.12s linear;
+  background-size:300px 100%;transition:width 0.08s linear;
 }
 .pose-meter-fill.locked{
   box-shadow:0 0 18px 2px rgba(50,222,132,.85), inset 0 0 12px rgba(255,255,255,.35);
@@ -43,7 +43,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 }
 @keyframes lockedPulse{0%{filter:brightness(1)}50%{filter:brightness(1.45)}100%{filter:brightness(1)}}
 .pose-meter-threshold{
-  position:absolute;top:-2px;bottom:-2px;left:85%;width:3px;
+  position:absolute;top:-2px;bottom:-2px;left:80%;width:3px;
   background:rgba(255,255,255,.85);border-radius:2px;
   box-shadow:0 0 8px rgba(255,255,255,.7);z-index:2;
 }
@@ -76,6 +76,17 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   background:rgba(50,222,132,.15);border:1px solid rgba(50,222,132,.4);
   font-weight:700;font-size:.75rem;color:#32de84;
 }
+.eye-indicator{
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.5rem .9rem;border-radius:12px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  font-size:2rem;transition:.15s;
+}
+.eye-indicator.closed{
+  background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5);
+  transform:scale(1.1);
+  box-shadow:0 0 20px rgba(239,68,68,.6);
+}
 </style>
 </head>
 
@@ -96,7 +107,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V2.1.8 — server-side verification</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V2.2.0 — server-side verification</p>
   </div>
 
   <div class="space-y-3">
@@ -131,7 +142,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <span id="scan-status">Mempersiapkan kamera...</span>
     </div>
     <div id="scan-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg">
-      <i class="fa-solid fa-lock mr-1"></i><span id="scan-lock-text">Terkunci!</span>
+      <i class="fa-solid fa-check mr-1"></i><span id="scan-lock-text">Terkunci!</span>
     </div>
   </div>
 
@@ -161,7 +172,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <div class="pose-step-dot" data-scan-step="1"></div>
   </div>
 
-  <!-- GPS PANEL: akurasi + jarak ke kantor -->
   <div class="grid grid-cols-2 gap-3 text-sm">
     <div class="bg-zinc-900 rounded-xl p-3">
       <span class="text-slate-400 block">Akurasi GPS</span>
@@ -268,6 +278,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <div id="pose-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg">
       <i class="fa-solid fa-check mr-1"></i><span id="pose-lock-text">Terkunci!</span>
     </div>
+    <div id="reg-eye-indicator" class="hidden absolute bottom-3 right-3">
+      <div class="eye-indicator" id="eye-indicator-icon">
+        <i class="fa-solid fa-eye"></i>
+      </div>
+    </div>
   </div>
 
   <div class="space-y-2">
@@ -308,7 +323,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 
   <div class="bg-zinc-900 rounded-xl p-3 text-xs text-slate-400">
-    <b class="text-emerald-400">Tip:</b> Untuk langkah terakhir, berkedip <b>3 kali</b>. Setiap kedip menambah progress sampai penuh, lalu otomatis kembali ke halaman utama.
+    <b class="text-emerald-400">Tip:</b> Untuk langkah terakhir, berkedip <b>3 kali secara natural</b>. Sistem mendeteksi kedipan cepat (0.1–0.4 detik) dengan baseline mata Anda. Setiap kedip menambah progress sampai penuh, lalu otomatis kembali ke halaman utama.
   </div>
 
   <div class="grid grid-cols-2 gap-3">
@@ -388,27 +403,62 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 
 <script>
 /* ============================================================
- * CONFIG
+ * CONFIG — nilai fallback
+ * Nilai aktual DITIMPA dari backend via public_config (tab Config).
  * ========================================================== */
-const API_URL = "https://script.google.com/macros/s/AKfycbx2lpK94jtxODHzI-cBHOwDLv-9unQPvuqN2Ba9WuSk218F3kZomCdxu6LpFAwaNNBI/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyH6_yjzcUkSsHU0_T0asU9Iaf6hGkVo3RpvnWS3DJ46G3viCC5Y7pb7uwADmdq9WOr/exec";
 const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
 
 const CFG = {
+  // Detector
+  useFastDetector: true,
+  detectorInputSize: 320,
+  detectorScoreThreshold: 0.4,
   minDetectorConfidence: 0.45,
+
   minFacePixels: 85,
   minQuality: 0.70,
+
+  // Sudut
   yawThreshold: 15,
   pitchThreshold: 12,
-  blinkClosedEar: 0.20,
-  blinkOpenEar: 0.25,
-  poseLockThreshold: 0.85,
-  poseStableMs: 600,
-  livenessStableMs: 500,
+
+  // Front pose dead zone
+  frontYawDead: 8,
+  frontYawMax: 25,
+  frontPitchDead: 6,
+  frontPitchMax: 20,
+
+  // Blink
+  blinkClosedEar: 0.22,
+  blinkOpenEar: 0.24,
+
+  // Auto-lock
+  poseLockThreshold: 0.80,
+  poseStableMs: 350,
+  livenessStableMs: 400,
+
+  // GPS / geofence
   maxRadiusMeters: 500,
-  maxGpsAccuracyMeters: 100
+  maxGpsAccuracyMeters: 100,
+  cooldownSeconds: 30,
+
+  // Face matching (info dari server, tidak dipakai frontend untuk keputusan)
+  faceMatchThreshold: 0.60,
+  minMatchMargin: 0.05,
+
+  // Blink target
+  blinkTarget: 3
 };
 
-const BLINK_TARGET = 3; // jumlah kedip untuk menyelesaikan pose terakhir
+// Variabel mutable — bisa diubah oleh loadServerConfig()
+let BLINK_TARGET = CFG.blinkTarget;
+let ENROLL_MIN = 7;
+let ENROLL_MAX = 20;
+
+/* ============================================================
+ * STATE
+ * ========================================================== */
 
 let authToken = localStorage.getItem('faceprint_v2_token') || '';
 let currentUser = null;
@@ -416,7 +466,7 @@ let faceSession = null;
 let faceVerification = null;
 let attendanceType = 'in';
 let gps = null;
-let officeCoords = null;   // { lat, lng } dari public_config
+let officeCoords = null;
 let stream = null;
 let regStream = null;
 let updateStream = null;
@@ -434,10 +484,12 @@ let poseStableStart = 0;
 let poseScoreSmoothed = 0;
 let poseLocked = false;
 
-// Blink state (multi-cycle)
-let blinkProgress = 0;        // 0..BLINK_TARGET
-let blinkWasClosed = false;
-let blinkCooldownUntil = 0;
+// Blink state (adaptive baseline)
+let blinkProgress = 0;
+let blinkBaselineEar = 0.30;
+let blinkFSMState = 'waiting';
+let blinkClosedTime = 0;
+let blinkLastDetected = 0;
 
 /* ============================================================
  * BASIC UI
@@ -502,9 +554,12 @@ async function api(action,payload={}){
 
 async function loadModels(){
   try{
-    await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]);
     modelsLoaded=true;
   }catch(e){
     console.error(e);
@@ -512,26 +567,82 @@ async function loadModels(){
   }
 }
 
+function getDetectorOptions(){
+  if (CFG.useFastDetector) {
+    return new faceapi.TinyFaceDetectorOptions({
+      inputSize: CFG.detectorInputSize,
+      scoreThreshold: CFG.detectorScoreThreshold
+    });
+  }
+  return new faceapi.SsdMobilenetv1Options({
+    minConfidence: CFG.minDetectorConfidence
+  });
+}
+
 async function loadServerConfig(){
   try{
-    const result=await api('public_config');
-    const c=result.config||{};
-    if(Number.isFinite(c.min_face_quality)) CFG.minQuality=c.min_face_quality;
-    if(Number.isFinite(c.max_radius_meters)) CFG.maxRadiusMeters=c.max_radius_meters;
-    if(Number.isFinite(c.max_gps_accuracy_meters)) CFG.maxGpsAccuracyMeters=c.max_gps_accuracy_meters;
+    const result = await api('public_config');
+    const c = result.config || {};
+
+    // === Face matching / quality ===
+    if(Number.isFinite(c.min_face_quality))         CFG.minQuality = c.min_face_quality;
+    if(Number.isFinite(c.face_match_threshold))     CFG.faceMatchThreshold = c.face_match_threshold;
+    if(Number.isFinite(c.min_match_margin))         CFG.minMatchMargin = c.min_match_margin;
+    if(Number.isFinite(c.enroll_min_samples))       ENROLL_MIN = c.enroll_min_samples;
+    if(Number.isFinite(c.enroll_max_samples))       ENROLL_MAX = c.enroll_max_samples;
+
+    // === Session / geofence ===
+    if(Number.isFinite(c.max_radius_meters))        CFG.maxRadiusMeters = c.max_radius_meters;
+    if(Number.isFinite(c.max_gps_accuracy_meters))  CFG.maxGpsAccuracyMeters = c.max_gps_accuracy_meters;
+    if(Number.isFinite(c.cooldown_seconds))         CFG.cooldownSeconds = c.cooldown_seconds;
 
     if(c.office_lat !== null && c.office_lat !== undefined &&
        c.office_lng !== null && c.office_lng !== undefined &&
        Number.isFinite(Number(c.office_lat)) && Number.isFinite(Number(c.office_lng))){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
-    } else {
-      officeCoords = null;
     }
 
-    const v=c.app_version||'2.0.0';
-    const subtitle=document.querySelector('#home h1 + p');
-    if(subtitle) subtitle.textContent='FacePrint V'+v+' — server-side verification';
-  }catch(e){ console.warn('Server config gagal dimuat:',e.message); }
+    // === Detector ===
+    if(typeof c.use_fast_detector === 'boolean')    CFG.useFastDetector = c.use_fast_detector;
+    if(Number.isFinite(c.detector_input_size))      CFG.detectorInputSize = c.detector_input_size;
+    if(Number.isFinite(c.detector_score_threshold)) CFG.detectorScoreThreshold = c.detector_score_threshold;
+    if(Number.isFinite(c.min_detector_confidence))  CFG.minDetectorConfidence = c.min_detector_confidence;
+    if(Number.isFinite(c.min_face_pixels))          CFG.minFacePixels = c.min_face_pixels;
+
+    // === Pose ===
+    if(Number.isFinite(c.yaw_threshold))            CFG.yawThreshold = c.yaw_threshold;
+    if(Number.isFinite(c.pitch_threshold))          CFG.pitchThreshold = c.pitch_threshold;
+    if(Number.isFinite(c.front_yaw_dead))           CFG.frontYawDead = c.front_yaw_dead;
+    if(Number.isFinite(c.front_yaw_max))            CFG.frontYawMax = c.front_yaw_max;
+    if(Number.isFinite(c.front_pitch_dead))         CFG.frontPitchDead = c.front_pitch_dead;
+    if(Number.isFinite(c.front_pitch_max))          CFG.frontPitchMax = c.front_pitch_max;
+
+    // === Blink ===
+    if(Number.isFinite(c.blink_closed_ear))         CFG.blinkClosedEar = c.blink_closed_ear;
+    if(Number.isFinite(c.blink_open_ear))           CFG.blinkOpenEar = c.blink_open_ear;
+    if(Number.isFinite(c.blink_target))             BLINK_TARGET = c.blink_target;
+
+    // === Auto-lock ===
+    if(Number.isFinite(c.pose_lock_threshold))      CFG.poseLockThreshold = c.pose_lock_threshold;
+    if(Number.isFinite(c.pose_stable_ms))           CFG.poseStableMs = c.pose_stable_ms;
+    if(Number.isFinite(c.liveness_stable_ms))       CFG.livenessStableMs = c.liveness_stable_ms;
+
+    const v = c.app_version || '2.0.0';
+    const subtitle = document.querySelector('#home h1 + p');
+    if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — server-side verification';
+
+    console.log('[CFG] Loaded from server:', {
+      poseLockThreshold: CFG.poseLockThreshold,
+      poseStableMs: CFG.poseStableMs,
+      frontYawDead: CFG.frontYawDead,
+      blinkTarget: BLINK_TARGET,
+      blinkClosedEar: CFG.blinkClosedEar,
+      useFastDetector: CFG.useFastDetector,
+      maxRadiusMeters: CFG.maxRadiusMeters
+    });
+  }catch(e){
+    console.warn('Server config gagal dimuat, pakai default:', e.message);
+  }
 }
 
 function clearLocalSession(){
@@ -584,19 +695,14 @@ function stopAllCameras(){
 
 async function detectFaceLandmarks(video){
   try {
-    return await faceapi.detectSingleFace(
-      video,
-      new faceapi.SsdMobilenetv1Options({minConfidence:CFG.minDetectorConfidence})
-    ).withFaceLandmarks();
+    return await faceapi.detectSingleFace(video, getDetectorOptions()).withFaceLandmarks();
   } catch(e){ return null; }
 }
 
 async function detectFaceFull(video){
   try {
-    return await faceapi.detectSingleFace(
-      video,
-      new faceapi.SsdMobilenetv1Options({minConfidence:CFG.minDetectorConfidence})
-    ).withFaceLandmarks().withFaceDescriptor();
+    return await faceapi.detectSingleFace(video, getDetectorOptions())
+      .withFaceLandmarks().withFaceDescriptor();
   } catch(e){ return null; }
 }
 
@@ -640,7 +746,7 @@ function getEyes(landmarks){
 function getEyeState(landmarks){
   const eyes=getEyes(landmarks);
   const ear=(eyeEAR(eyes.left)+eyeEAR(eyes.right))/2;
-  return {ear,closed:ear<CFG.blinkClosedEar,open:ear>CFG.blinkOpenEar};
+  return {ear, closed:ear<CFG.blinkClosedEar, open:ear>CFG.blinkOpenEar};
 }
 
 function estimatePose(landmarks){
@@ -676,16 +782,22 @@ function computePoseScore(poseIndex, landmarks, quality){
 
   switch(poseIndex){
     case 0: {
-      const yawScore   = Math.max(0, 1 - Math.abs(pose.yaw)   / CFG.yawThreshold);
-      const pitchScore = Math.max(0, 1 - Math.abs(pose.pitch) / CFG.pitchThreshold);
-      const eyeScore   = eyes.open ? 1 : 0.4;
-      raw = (yawScore * 0.4 + pitchScore * 0.4 + eyeScore * 0.2);
+      const yawAbs   = Math.abs(pose.yaw);
+      const pitchAbs = Math.abs(pose.pitch);
+
+      const yawScore = yawAbs <= CFG.frontYawDead ? 1 :
+        Math.max(0, 1 - (yawAbs - CFG.frontYawDead) / (CFG.frontYawMax - CFG.frontYawDead));
+      const pitchScore = pitchAbs <= CFG.frontPitchDead ? 1 :
+        Math.max(0, 1 - (pitchAbs - CFG.frontPitchDead) / (CFG.frontPitchMax - CFG.frontPitchDead));
+      const eyeScore = eyes.open ? 1 : 0.6;
+
+      raw = yawScore * 0.45 + pitchScore * 0.35 + eyeScore * 0.20;
       break;
     }
-    case 1: raw = Math.max(0, Math.min(1, pose.yaw / CFG.yawThreshold)); break;
-    case 2: raw = Math.max(0, Math.min(1, -pose.yaw / CFG.yawThreshold)); break;
-    case 3: raw = Math.max(0, Math.min(1, pose.pitch / CFG.pitchThreshold)); break;
-    case 4: raw = Math.max(0, Math.min(1, -pose.pitch / CFG.pitchThreshold)); break;
+    case 1: raw = pose.yaw <= 0 ? 0 : Math.min(1, pose.yaw / CFG.yawThreshold); break;
+    case 2: raw = pose.yaw >= 0 ? 0 : Math.min(1, -pose.yaw / CFG.yawThreshold); break;
+    case 3: raw = pose.pitch <= 0 ? 0 : Math.min(1, pose.pitch / CFG.pitchThreshold); break;
+    case 4: raw = pose.pitch >= 0 ? 0 : Math.min(1, -pose.pitch / CFG.pitchThreshold); break;
     default: raw = 0;
   }
 
@@ -711,7 +823,7 @@ const POSE_HINTS = [
   { arrow:'<i class="fa-solid fa-arrow-right-long"></i>', cls:'right', text:'Menoleh ke KANAN layar' },
   { arrow:'<i class="fa-solid fa-arrow-down-long"></i>', cls:'down',   text:'Tundukkan kepala' },
   { arrow:'<i class="fa-solid fa-arrow-up-long"></i>', cls:'up',       text:'Dongakkan kepala' },
-  { arrow:'<i class="fa-solid fa-eye-slash"></i>', cls:'blink',        text:'Berkedip 3 kali' }
+  { arrow:'<i class="fa-solid fa-eye-slash"></i>', cls:'blink',        text:'Berkedip 3 kali (natural)' }
 ];
 
 const LIVENESS_HINTS = {
@@ -721,14 +833,17 @@ const LIVENESS_HINTS = {
 };
 
 /* ============================================================
- * LIVENESS (FacePrint In/Out & Update)
+ * LIVENESS
  * ========================================================== */
 
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
   let current = 0;
   let stableStart = 0;
-  let blinkClosedSeen = false;
+  let blinkBaseline = 0.30;
+  let blinkFSM = 'waiting';
+  let blinkClosedAt = 0;
+  let blinkLastAt = 0;
 
   if (uiPrefix === 'scan') {
     $('challenge-box').classList.remove('hidden');
@@ -748,41 +863,51 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
       $(statusId).textContent = 'Wajah tidak terdeteksi';
       updateLivenessUI(uiPrefix, 0, 'Wajah tidak terdeteksi', current, challenge.length);
       stableStart = 0;
-      await sleep(120);
+      await sleep(60);
       continue;
     }
 
     const step = challenge[current];
     const pose = estimatePose(detection.landmarks);
     const eyes = getEyeState(detection.landmarks);
+    const now = performance.now();
 
     let score = 0;
     let advanced = false;
 
     if(step === 'BLINK'){
-      if(!blinkClosedSeen && eyes.ear < CFG.blinkClosedEar) blinkClosedSeen = true;
+      if (eyes.ear > blinkBaseline) blinkBaseline = blinkBaseline * 0.9 + eyes.ear * 0.1;
+      const closeTh = Math.min(0.28, blinkBaseline * 0.75);
+      const reopenTh = Math.max(0.22, blinkBaseline * 0.85);
 
-      if(!blinkClosedSeen){
-        const closedness = Math.max(0, Math.min(1,
-          (CFG.blinkOpenEar - eyes.ear) / (CFG.blinkOpenEar - CFG.blinkClosedEar)));
-        score = closedness * 0.5;
-      } else {
-        const openness = Math.max(0, Math.min(1,
-          (eyes.ear - CFG.blinkClosedEar) / (CFG.blinkOpenEar - CFG.blinkClosedEar)));
-        score = 0.5 + openness * 0.5;
-        if(eyes.ear > CFG.blinkOpenEar) advanced = true;
+      if (now - blinkLastAt > 300) {
+        if (blinkFSM === 'waiting') {
+          if (eyes.ear < closeTh) { blinkFSM = 'closed'; blinkClosedAt = now; }
+          score = 0.3;
+        } else {
+          if (eyes.ear > reopenTh) {
+            blinkFSM = 'waiting';
+            blinkLastAt = now;
+            advanced = true;
+            score = 1;
+          } else if (now - blinkClosedAt > 1500) {
+            blinkFSM = 'waiting';
+          } else {
+            score = 0.6;
+          }
+        }
       }
     } else if(step === 'LEFT'){
-      score = Math.max(0, Math.min(1, pose.yaw / CFG.yawThreshold));
-      if(score >= 0.85){
-        if(!stableStart) stableStart = performance.now();
-        else if(performance.now() - stableStart >= CFG.livenessStableMs) advanced = true;
+      score = pose.yaw <= 0 ? 0 : Math.min(1, pose.yaw / CFG.yawThreshold);
+      if(score >= 0.80){
+        if(!stableStart) stableStart = now;
+        else if(now - stableStart >= CFG.livenessStableMs) advanced = true;
       } else stableStart = 0;
     } else if(step === 'RIGHT'){
-      score = Math.max(0, Math.min(1, -pose.yaw / CFG.yawThreshold));
-      if(score >= 0.85){
-        if(!stableStart) stableStart = performance.now();
-        else if(performance.now() - stableStart >= CFG.livenessStableMs) advanced = true;
+      score = pose.yaw >= 0 ? 0 : Math.min(1, -pose.yaw / CFG.yawThreshold);
+      if(score >= 0.80){
+        if(!stableStart) stableStart = now;
+        else if(now - stableStart >= CFG.livenessStableMs) advanced = true;
       } else stableStart = 0;
     }
 
@@ -792,14 +917,13 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     if(advanced){
       current++;
       stableStart = 0;
-      blinkClosedSeen = false;
       showLivenessLockBadge(uiPrefix);
-      await sleep(400);
+      await sleep(350);
       hideLivenessLockBadge(uiPrefix);
       updateLivenessUI(uiPrefix, 0, null, current, challenge.length);
     }
 
-    await sleep(80);
+    await sleep(35);
   }
 
   updateLivenessUI(uiPrefix, 1, 'Verifikasi selesai', challenge.length, challenge.length);
@@ -846,7 +970,7 @@ function updateLivenessUI(prefix, score, overrideText, current, total){
   label.textContent = pct + '%';
   status.textContent = pct + '%';
 
-  if(pct >= 85){
+  if(pct >= 80){
     hint.classList.remove('text-slate-300','text-yellow-400','text-red-400');
     hint.classList.add('text-emerald-400');
     status.className = 'font-mono text-emerald-400';
@@ -931,7 +1055,7 @@ async function verifyCurrentFace(videoId,statusId,uiPrefix){
 }
 
 /* ============================================================
- * GPS — akurasi + jarak ke kantor
+ * GPS
  * ========================================================== */
 
 function haversineClient_(lat1,lng1,lat2,lng2){
@@ -965,11 +1089,7 @@ function getGPS(){
 
   navigator.geolocation.getCurrentPosition(
     p=>{
-      gps={
-        latitude:p.coords.latitude,
-        longitude:p.coords.longitude,
-        gps_accuracy:p.coords.accuracy
-      };
+      gps={latitude:p.coords.latitude,longitude:p.coords.longitude,gps_accuracy:p.coords.accuracy};
 
       const acc = Math.round(gps.gps_accuracy);
       const accOk = acc <= CFG.maxGpsAccuracyMeters;
@@ -1049,9 +1169,8 @@ async function startAttendanceScanner(){
     scannerRunning=false;
     stopStream(stream);stream=null;
   } finally {
-    const inBtn=$('btn-start-in');
-    const outBtn=$('btn-start-out');
-    setBusy(inBtn,false); setBusy(outBtn,false);
+    setBusy($('btn-start-in'),false);
+    setBusy($('btn-start-out'),false);
   }
 }
 
@@ -1181,8 +1300,10 @@ function resetEnrollment(){
   poseLocked=false;
 
   blinkProgress=0;
-  blinkWasClosed=false;
-  blinkCooldownUntil=0;
+  blinkBaselineEar=0.30;
+  blinkFSMState='waiting';
+  blinkClosedTime=0;
+  blinkLastDetected=0;
 
   $('pose-text').textContent=POSES[0];
   $('pose-progress').textContent='0 / 6';
@@ -1191,6 +1312,7 @@ function resetEnrollment(){
 
   $('blink-counter-wrap').classList.add('hidden');
   $('blink-counter').textContent = '0 / ' + BLINK_TARGET;
+  $('reg-eye-indicator').classList.add('hidden');
 
   updatePoseUI(0);
   updateStepDots();
@@ -1215,30 +1337,28 @@ async function runPoseDetectionLoop(){
 
   while (registrationRunning && poseLoopRunning && currentPose < 6) {
     try {
-      if (!video || !video.videoWidth) { await sleep(120); continue; }
-      if (poseLocked) { await sleep(80); continue; }
+      if (!video || !video.videoWidth) { await sleep(60); continue; }
+      if (poseLocked) { await sleep(40); continue; }
 
       const detection = await detectFaceFull(video);
 
       if (!detection) {
         updatePoseUI(0, 'Wajah tidak terdeteksi');
         poseStableStart = 0;
-        await sleep(120);
+        await sleep(80);
         continue;
       }
 
       const quality = estimateQuality(detection, video);
 
-      // Blink step: multi-cycle
       if (currentPose === 5) {
         await handleBlinkStep(detection, quality);
-        await sleep(60);
+        await sleep(25);
         continue;
       }
 
-      // Regular pose steps (0..4)
       const score = computePoseScore(currentPose, detection.landmarks, quality);
-      poseScoreSmoothed = poseScoreSmoothed * 0.55 + score * 0.45;
+      poseScoreSmoothed = poseScoreSmoothed * 0.35 + score * 0.65;
       updatePoseUI(poseScoreSmoothed);
 
       if (poseScoreSmoothed >= CFG.poseLockThreshold) {
@@ -1251,84 +1371,97 @@ async function runPoseDetectionLoop(){
         poseStableStart = 0;
       }
 
-      await sleep(80);
+      await sleep(25);
     } catch (err) {
       console.error('Pose loop error:', err);
-      await sleep(200);
+      await sleep(120);
     }
   }
 
   poseLoopRunning = false;
 }
 
-/**
- * Blink handler (multi-cycle):
- * - Setiap kedip (mata tertutup lalu terbuka) = 1 progress
- * - Setelah BLINK_TARGET tercapai, pose selesai & auto-return home
- */
 async function handleBlinkStep(detection, quality){
   const eyes = getEyeState(detection.landmarks);
+  const ear = eyes.ear;
   const now = performance.now();
 
-  if (now < blinkCooldownUntil) {
-    updatePoseUI(blinkProgress / BLINK_TARGET, `Berkedip ${blinkProgress}/${BLINK_TARGET}`);
+  if (ear > blinkBaselineEar) {
+    blinkBaselineEar = blinkBaselineEar * 0.9 + ear * 0.1;
+  }
+
+  const closeTh  = Math.min(0.28, blinkBaselineEar * 0.75);
+  const reopenTh = Math.max(0.22, blinkBaselineEar * 0.85);
+
+  const eyeIcon = $('eye-indicator-icon');
+  if (eyeIcon) {
+    if (ear < closeTh) {
+      eyeIcon.classList.add('closed');
+      eyeIcon.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+    } else {
+      eyeIcon.classList.remove('closed');
+      eyeIcon.innerHTML = '<i class="fa-solid fa-eye"></i>';
+    }
+  }
+
+  if (now - blinkLastDetected < 300) {
+    const prog = blinkProgress / BLINK_TARGET;
+    updatePoseUI(prog, `Berkedip ${blinkProgress}/${BLINK_TARGET}`);
     return;
   }
 
-  if (eyes.ear < CFG.blinkClosedEar) {
-    blinkWasClosed = true;
-    const progress = blinkProgress / BLINK_TARGET;
-    updatePoseUI(progress, `Tutup mata... (${blinkProgress}/${BLINK_TARGET})`);
-    return;
-  }
-
-  if (blinkWasClosed && eyes.ear > CFG.blinkOpenEar) {
-    // Satu kedip lengkap
-    blinkWasClosed = false;
-    blinkProgress++;
-    blinkCooldownUntil = now + 350;
-
-    // Simpan sample dari frame mata terbuka
-    enrolledSamples.push({
-      pose: 'blink_' + blinkProgress,
-      descriptor: Array.from(detection.descriptor),
-      quality: quality
-    });
-
-    $('blink-counter').textContent = blinkProgress + ' / ' + BLINK_TARGET;
-
-    const progress = blinkProgress / BLINK_TARGET;
-    updatePoseUI(progress, `Kedip ${blinkProgress}/${BLINK_TARGET} ✓`);
-
-    if (blinkProgress < BLINK_TARGET) {
-      // Masih perlu kedip lagi
-      showLockBadge(`Kedip ${blinkProgress}/${BLINK_TARGET} ✓`);
-      setTimeout(hideLockBadge, 500);
-      return;
+  if (blinkFSMState === 'waiting') {
+    if (ear < closeTh) {
+      blinkFSMState = 'closed';
+      blinkClosedTime = now;
     }
-
-    // Selesai semua kedip
-    showLockBadge('✓ Kedip selesai!');
-    currentPose++;
-    updateStepDots();
-
-    const pct = Math.round(currentPose / 6 * 100);
-    $('pose-progress').textContent = currentPose + ' / 6';
-    $('pose-percent').textContent = pct + '%';
-    $('pose-bar').style.width = pct + '%';
-
-    await sleep(800);
-    hideLockBadge();
-
-    if (currentPose >= 6) {
-      await finalizeEnrollment();
-    }
-  } else {
-    // Belum ada kedip, tampilkan progress berdasarkan closedness
     const closedness = Math.max(0, Math.min(1,
-      (CFG.blinkOpenEar - eyes.ear) / (CFG.blinkOpenEar - CFG.blinkClosedEar)));
-    const progress = (blinkProgress / BLINK_TARGET) + closedness / BLINK_TARGET;
-    updatePoseUI(progress, `Berkedip ${blinkProgress}/${BLINK_TARGET}`);
+      (blinkBaselineEar - ear) / Math.max(0.05, blinkBaselineEar - 0.10)));
+    const prog = (blinkProgress + closedness * 0.4) / BLINK_TARGET;
+    updatePoseUI(prog, `Tutup & buka mata (${blinkProgress}/${BLINK_TARGET})`);
+  } else {
+    if (ear > reopenTh) {
+      blinkFSMState = 'waiting';
+      blinkLastDetected = now;
+      blinkProgress++;
+
+      enrolledSamples.push({
+        pose: 'blink_' + blinkProgress,
+        descriptor: Array.from(detection.descriptor),
+        quality: quality
+      });
+
+      $('blink-counter').textContent = blinkProgress + ' / ' + BLINK_TARGET;
+
+      const prog = blinkProgress / BLINK_TARGET;
+      updatePoseUI(prog, `Kedip ${blinkProgress}/${BLINK_TARGET} ✓`);
+
+      if (blinkProgress < BLINK_TARGET) {
+        showLockBadge(`Kedip ${blinkProgress}/${BLINK_TARGET} ✓`);
+        setTimeout(hideLockBadge, 400);
+      } else {
+        showLockBadge('✓ Kedip selesai!');
+        currentPose++;
+        updateStepDots();
+
+        const pct = Math.round(currentPose / 6 * 100);
+        $('pose-progress').textContent = currentPose + ' / 6';
+        $('pose-percent').textContent = pct + '%';
+        $('pose-bar').style.width = pct + '%';
+
+        await sleep(700);
+        hideLockBadge();
+
+        if (currentPose >= 6) {
+          await finalizeEnrollment();
+        }
+      }
+    } else if (now - blinkClosedTime > 1500) {
+      blinkFSMState = 'waiting';
+    } else {
+      const prog = (blinkProgress + 0.5) / BLINK_TARGET;
+      updatePoseUI(prog, `Buka mata kembali (${blinkProgress}/${BLINK_TARGET})`);
+    }
   }
 }
 
@@ -1394,7 +1527,7 @@ async function lockAndCaptureCurrentPose(detection, quality){
   $('pose-percent').textContent = pct + '%';
   $('pose-bar').style.width = pct + '%';
 
-  await sleep(500);
+  await sleep(400);
 
   poseLocked = false;
   poseScoreSmoothed = 0;
@@ -1408,12 +1541,13 @@ async function lockAndCaptureCurrentPose(detection, quality){
   $('pose-text').textContent = POSES[currentPose];
   updatePoseUI(0);
 
-  // Tampilkan/sembunyikan blink counter
   if (currentPose === 5) {
     $('blink-counter-wrap').classList.remove('hidden');
     $('blink-counter').textContent = '0 / ' + BLINK_TARGET;
+    $('reg-eye-indicator').classList.remove('hidden');
   } else {
     $('blink-counter-wrap').classList.add('hidden');
+    $('reg-eye-indicator').classList.add('hidden');
   }
 }
 
@@ -1431,7 +1565,6 @@ async function skipCurrentPose(){
   const descriptor = Array.from(detection.descriptor);
 
   if (currentPose === 5) {
-    // Blink skip: langsung push BLINK_TARGET samples
     for (let i = 0; i < BLINK_TARGET; i++) {
       enrolledSamples.push({pose:'blink_' + (i+1), descriptor, quality});
     }
@@ -1442,7 +1575,7 @@ async function skipCurrentPose(){
     $('pose-percent').textContent = pct + '%';
     $('pose-bar').style.width = pct + '%';
     showLockBadge('✓ Terkunci!');
-    await sleep(600);
+    await sleep(500);
     hideLockBadge();
     if (currentPose >= 6) {
       await finalizeEnrollment();
@@ -1475,7 +1608,7 @@ async function forceCapturePose(){
     $('pose-percent').textContent = pct + '%';
     $('pose-bar').style.width = pct + '%';
     showLockBadge('✓ Terkunci!');
-    await sleep(600);
+    await sleep(500);
     hideLockBadge();
     if (currentPose >= 6) {
       await finalizeEnrollment();
