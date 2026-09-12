@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V2.1.6 — Bio Attendance System</title>
+<title>FacePrint V2.1.7 — Bio Attendance System</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,6 +87,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   justify-content: center;
   font-weight: 700;
   transition: color .2s;
+  min-height: 2rem;
 }
 .pose-arrow{
   display: inline-block;
@@ -118,7 +119,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   50%{transform: scale(1.18);opacity:.5}
 }
 .pose-step-dot{
-  width: 26px;height: 6px;border-radius: 4px;background:#27272a;transition:.25s;
+  flex:1;
+  height: 6px;
+  border-radius: 4px;
+  background:#27272a;
+  transition:.25s;
 }
 .pose-step-dot.done{background:#32de84;box-shadow:0 0 8px rgba(50,222,132,.55)}
 .pose-step-dot.active{background:#facc15;box-shadow:0 0 8px rgba(250,204,21,.6);animation:dotPulse 1s ease-in-out infinite}
@@ -146,7 +151,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V2.1.6 — server-side verification</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V2.1.7 — server-side verification</p>
   </div>
 
   <div class="space-y-3">
@@ -165,6 +170,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </section>
 
+<!-- ============================================================
+     SCANNER (FacePrint In / Out) — Dengan Score Meter
+     ============================================================ -->
 <section id="scanner" class="hidden card w-full max-w-2xl p-5 space-y-4">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
     <h2 id="scanner-title" class="font-bold text-lg">FacePrint In</h2>
@@ -180,11 +188,36 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs">
       <span id="scan-status">Mempersiapkan kamera...</span>
     </div>
+    <div id="scan-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg">
+      <i class="fa-solid fa-lock mr-1"></i><span id="scan-lock-text">Terkunci!</span>
+    </div>
   </div>
 
   <div id="challenge-box" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-4">
     <div class="text-xs text-slate-400">Liveness challenge</div>
     <div id="challenge-text" class="font-bold text-emerald-400 mt-1"></div>
+  </div>
+
+  <!-- SCORE METER untuk liveness -->
+  <div class="space-y-2">
+    <div class="flex justify-between items-center text-xs">
+      <span class="text-slate-400">Progress pose</span>
+      <span id="scan-score-status" class="font-mono text-slate-400">0%</span>
+    </div>
+    <div class="pose-meter">
+      <div id="scan-meter-fill" class="pose-meter-fill"></div>
+      <div class="pose-meter-threshold"></div>
+      <div class="pose-meter-label"><span id="scan-meter-label">0%</span></div>
+    </div>
+    <div id="scan-hint" class="pose-hint text-emerald-400">
+      <span id="scan-hint-arrow" class="pose-arrow"></span>
+      <span id="scan-hint-text">Bersiap...</span>
+    </div>
+  </div>
+
+  <div class="flex justify-between items-center gap-1">
+    <div class="pose-step-dot" data-scan-step="0"></div>
+    <div class="pose-step-dot" data-scan-step="1"></div>
   </div>
 
   <div class="grid grid-cols-2 gap-3 text-sm">
@@ -227,6 +260,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </section>
 
+<!-- ============================================================
+     REGISTRATION — 6 Langkah, Blink Tunggal
+     ============================================================ -->
 <section id="registration" class="hidden card w-full max-w-2xl p-5 space-y-5">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
     <h2 class="font-bold">Pendaftaran FacePrint V2</h2>
@@ -281,14 +317,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <video id="reg-video" autoplay playsinline muted></video>
     <canvas id="reg-canvas"></canvas>
     <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs text-center">
-      <span id="pose-text">Langkah 1/7: Hadap depan</span>
+      <span id="pose-text">Langkah 1/6: Hadap depan</span>
     </div>
     <div id="pose-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg">
       <i class="fa-solid fa-lock mr-1"></i><span id="pose-lock-text">Terkunci!</span>
     </div>
   </div>
 
-  <!-- POSE SCORE METER -->
   <div class="space-y-2">
     <div class="flex justify-between items-center text-xs">
       <span class="text-slate-400">Kualitas pose saat ini</span>
@@ -300,12 +335,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <div class="pose-meter-label"><span id="pose-meter-label-text">0%</span></div>
     </div>
     <div id="pose-hint" class="pose-hint text-emerald-400">
-      <span id="pose-hint-arrow" class="pose-arrow"><i class="fa-solid fa-arrows-to-dot"></i></span>
+      <span id="pose-hint-arrow" class="pose-arrow"></span>
       <span id="pose-hint-text">Hadap depan, tatap kamera</span>
     </div>
   </div>
 
-  <!-- STEP DOTS -->
   <div class="flex justify-between items-center gap-1">
     <div class="pose-step-dot" data-step="0"></div>
     <div class="pose-step-dot" data-step="1"></div>
@@ -313,12 +347,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <div class="pose-step-dot" data-step="3"></div>
     <div class="pose-step-dot" data-step="4"></div>
     <div class="pose-step-dot" data-step="5"></div>
-    <div class="pose-step-dot" data-step="6"></div>
   </div>
 
   <div>
     <div class="flex justify-between text-xs text-slate-400 mb-1">
-      <span id="pose-progress">0 / 7</span><span id="pose-percent">0%</span>
+      <span id="pose-progress">0 / 6</span><span id="pose-percent">0%</span>
     </div>
     <div class="h-2 rounded-full bg-zinc-800 overflow-hidden">
       <div id="pose-bar" class="h-full bg-emerald-400" style="width:0%"></div>
@@ -326,7 +359,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 
   <div class="bg-zinc-900 rounded-xl p-3 text-xs text-slate-400">
-    <b class="text-emerald-400">Tip:</b> Tahan pose Anda sampai batang meter berubah menjadi hijau penuh. Pose akan otomatis terkunci dan lanjut ke langkah berikutnya.
+    <b class="text-emerald-400">Tip:</b> Tahan pose Anda sampai batang meter hijau penuh. Untuk langkah terakhir, cukup berkedip sekali — sistem otomatis menangkap frame mata tertutup dan mata terbuka.
   </div>
 
   <div class="grid grid-cols-2 gap-3">
@@ -339,6 +372,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </section>
 
+<!-- ============================================================
+     UPDATE — Dengan Score Meter
+     ============================================================ -->
 <section id="update" class="hidden card w-full max-w-2xl p-5 space-y-5">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
     <h2 class="font-bold">Update Dokumen & Data</h2>
@@ -360,6 +396,30 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs">
         <span id="update-status">Mempersiapkan...</span>
       </div>
+      <div id="update-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg">
+        <i class="fa-solid fa-lock mr-1"></i><span id="update-lock-text">Terkunci!</span>
+      </div>
+    </div>
+
+    <div class="space-y-2">
+      <div class="flex justify-between items-center text-xs">
+        <span class="text-slate-400">Progress pose</span>
+        <span id="update-score-status" class="font-mono text-slate-400">0%</span>
+      </div>
+      <div class="pose-meter">
+        <div id="update-meter-fill" class="pose-meter-fill"></div>
+        <div class="pose-meter-threshold"></div>
+        <div class="pose-meter-label"><span id="update-meter-label">0%</span></div>
+      </div>
+      <div id="update-hint" class="pose-hint text-emerald-400">
+        <span id="update-hint-arrow" class="pose-arrow"></span>
+        <span id="update-hint-text">Bersiap...</span>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center gap-1">
+      <div class="pose-step-dot" data-update-step="0"></div>
+      <div class="pose-step-dot" data-update-step="1"></div>
     </div>
   </div>
 
@@ -388,19 +448,16 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwJKl2Kx1_JVN76Tjne1CJR
 const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
 
 const CFG = {
-  targetFps: 8,
   minDetectorConfidence: 0.45,
   minFacePixels: 85,
   minQuality: 0.70,
-  // Pose thresholds
   yawThreshold: 15,
   pitchThreshold: 12,
   blinkClosedEar: 0.20,
   blinkOpenEar: 0.25,
-  // Enrollment auto-lock
-  poseLockThreshold: 0.85,   // skor minimal untuk auto-lock
-  poseStableMs: 600,         // berapa lama skor harus stabil di atas threshold
-  poseHintCooldownMs: 400
+  poseLockThreshold: 0.85,
+  poseStableMs: 600,
+  livenessStableMs: 500
 };
 
 let authToken = localStorage.getItem('faceprint_v2_token') || '';
@@ -420,11 +477,12 @@ let currentPose = 0;
 let enrolledSamples = [];
 let currentUpdateUser = null;
 
-// Enrollment pose loop state
+// Enrollment loop state
 let poseLoopRunning = false;
 let poseStableStart = 0;
 let poseScoreSmoothed = 0;
 let poseLocked = false;
+let blinkPoseClosedCaptured = false;
 
 /* ============================================================
  * BASIC UI
@@ -503,8 +561,6 @@ async function loadServerConfig(){
     const result=await api('public_config');
     const c=result.config||{};
     if(Number.isFinite(c.min_face_quality)) CFG.minQuality=c.min_face_quality;
-    if(Number.isFinite(c.max_radius_meters)) CFG.maxRadiusMeters=c.max_radius_meters;
-    if(Number.isFinite(c.max_gps_accuracy_meters)) CFG.maxGpsAccuracyMeters=c.max_gps_accuracy_meters;
     const v=c.app_version||'2.0.0';
     const subtitle=document.querySelector('#home h1 + p');
     if(subtitle) subtitle.textContent='FacePrint V'+v+' — server-side verification';
@@ -546,9 +602,7 @@ async function openCamera(videoId){
   return s;
 }
 
-function stopStream(s){
-  if(s) s.getTracks().forEach(t=>t.stop());
-}
+function stopStream(s){ if(s) s.getTracks().forEach(t=>t.stop()); }
 
 function stopAllCameras(){
   poseLoopRunning=false;
@@ -558,13 +612,34 @@ function stopAllCameras(){
 }
 
 /* ============================================================
+ * FACE DETECTION HELPERS
+ * ========================================================== */
+
+async function detectFaceLandmarks(video){
+  try {
+    return await faceapi.detectSingleFace(
+      video,
+      new faceapi.SsdMobilenetv1Options({minConfidence:CFG.minDetectorConfidence})
+    ).withFaceLandmarks();
+  } catch(e){ return null; }
+}
+
+async function detectFaceFull(video){
+  try {
+    return await faceapi.detectSingleFace(
+      video,
+      new faceapi.SsdMobilenetv1Options({minConfidence:CFG.minDetectorConfidence})
+    ).withFaceLandmarks().withFaceDescriptor();
+  } catch(e){ return null; }
+}
+
+/* ============================================================
  * FACE QUALITY / LANDMARKS
  * ========================================================== */
 
 function getBoxQuality(detection,canvas){
   const box=detection.detection.box;
   const area=box.width*box.height;
-  const frameArea=canvas.width*canvas.height;
   const sizeScore=Math.min(1,Math.sqrt(area)/180);
   const centerX=box.x+box.width/2;
   const centerY=box.y+box.height/2;
@@ -592,10 +667,7 @@ function eyeEAR(eye){
 
 function getEyes(landmarks){
   const pts=landmarks.positions;
-  return {
-    left:pts.slice(36,42),
-    right:pts.slice(42,48)
-  };
+  return { left:pts.slice(36,42), right:pts.slice(42,48) };
 }
 
 function getEyeState(landmarks){
@@ -607,48 +679,43 @@ function getEyeState(landmarks){
 /**
  * Estimasi pose wajah dari 68 landmarks.
  *
- * KONVENSI (setelah memperhitungkan mirror CSS):
- * - yaw > 0  →  wajah menghadap ke KIRI pada layar (user menoleh ke kiri)
- * - yaw < 0  →  wajah menghadap ke KANAN pada layar
+ * KONVENSI FINAL (V2.1.7):
+ * - yaw > 0  →  user menoleh ke KIRI (di layar mirror)
+ * - yaw < 0  →  user menoleh ke KANAN
  * - pitch > 0 →  menunduk
  * - pitch < 0 →  mendongak
  *
- * CATATAN PENTING — PERBAIKAN BUG:
- * Kode lama memakai jaw point p[2] (kanan user) dan p[14] (kiri user)
- * dengan rumus `yaw = (nose.x - midX) / faceWidth * 100`. Karena video
- * mentah tidak mirror tapi display di-mirror via CSS, arah yaw di kode
- * lama TERBALIK, sehingga user "menoleh kiri" menghasilkan yaw negatif
- * padahal kode mengharapkan positif. Hasilnya pose 2 selalu gagal.
+ * BUG YANG DIPERBAIKI DI V2.1.7:
+ * V2.1.6 memakai `yaw = -yawRaw` yang justru membalik arah.
+ * Sekarang `yaw = yawRaw` sehingga arah menoleh kiri/kanan sesuai
+ * dengan apa yang user lihat di layar mirror.
  *
- * Perbaikan: gunakan rumus berbasis eye-corner (lebih stabil), dan
- * balikkan tanda yaw agar sesuai dengan apa yang user LIHAT di layar.
+ * Penalaran:
+ * Video mentah (belum mirror): user menoleh ke kiri → hidung bergerak
+ * ke sisi KANAN gambar mentah → yawRaw > 0. Display di-mirror via CSS,
+ * jadi user melihat hidungnya bergerak ke KIRI layar. Jadi yawRaw > 0
+ * = user menoleh kiri. Tanda tidak perlu dibalik.
  */
 function estimatePose(landmarks){
   const p = landmarks.positions;
-  const leftEyeOuter  = p[36];   // di frame mentah = sisi kanan wajah user
-  const rightEyeOuter = p[45];   // di frame mentah = sisi kiri wajah user
+  const leftEyeOuter  = p[36];
+  const rightEyeOuter = p[45];
   const nose   = p[30];
   const chin   = p[8];
   const browL  = p[21];
   const browR  = p[22];
 
-  // === YAW ===
-  // Bila user menghadap lurus, nose.x ≈ titik tengah antara dua mata.
-  // Bila user menoleh ke kiri (di layar), nose bergerak ke kanan frame mentah.
-  // Kita balikkan tandanya agar sesuai apa yang user LIHAT di layar mirror.
   const eyeMidX = (leftEyeOuter.x + rightEyeOuter.x) / 2;
   const eyeDist = Math.max(1, Math.abs(rightEyeOuter.x - leftEyeOuter.x));
   const yawRaw  = ((nose.x - eyeMidX) / eyeDist) * 100;
-  const yaw     = -yawRaw;   // <-- PENTING: balik tanda agar sesuai display mirror
+  const yaw     = yawRaw;   // TIDAK dibalik — sudah sesuai
 
-  // === PITCH ===
   const eyeMidY    = (leftEyeOuter.y + rightEyeOuter.y) / 2;
   const browMidY   = (browL.y + browR.y) / 2;
   const faceHeight = Math.max(1, chin.y - browMidY);
-  const pitchNorm  = (nose.y - browMidY) / faceHeight; // ~0.42 untuk netral
+  const pitchNorm  = (nose.y - browMidY) / faceHeight;
   const pitch      = (pitchNorm - 0.42) * 100;
 
-  // === ROLL (untuk info, tidak dipakai sebagai gate) ===
   const roll = Math.atan2(rightEyeOuter.y - leftEyeOuter.y,
                           rightEyeOuter.x - leftEyeOuter.x) * 180 / Math.PI;
 
@@ -656,66 +723,44 @@ function estimatePose(landmarks){
 }
 
 /**
- * Hitung skor kecocokan pose (0..1) terhadap target pose index.
- * Skor 1.0 = sempurna, 0.0 = tidak sama sekali.
+ * Hitung skor kecocokan pose untuk enrollment (index 0..5).
  */
 function computePoseScore(poseIndex, landmarks, quality){
   const pose = estimatePose(landmarks);
   const eyes = getEyeState(landmarks);
-
-  // Faktor kualitas: jika kualitas rendah, skor tertahan
   const qFactor = Math.max(0, Math.min(1, quality / CFG.minQuality));
 
   let raw = 0;
 
   switch(poseIndex){
-    case 0: { // FRONT — yaw & pitch kecil
+    case 0: {
       const yawScore   = Math.max(0, 1 - Math.abs(pose.yaw)   / CFG.yawThreshold);
       const pitchScore = Math.max(0, 1 - Math.abs(pose.pitch) / CFG.pitchThreshold);
       const eyeScore   = eyes.open ? 1 : 0.4;
       raw = (yawScore * 0.4 + pitchScore * 0.4 + eyeScore * 0.2);
       break;
     }
-    case 1: { // LEFT — yaw positif (setelah koreksi tanda)
-      raw = Math.max(0, Math.min(1, pose.yaw / CFG.yawThreshold));
-      break;
-    }
-    case 2: { // RIGHT — yaw negatif
-      raw = Math.max(0, Math.min(1, -pose.yaw / CFG.yawThreshold));
-      break;
-    }
-    case 3: { // DOWN — pitch positif
-      raw = Math.max(0, Math.min(1, pose.pitch / CFG.pitchThreshold));
-      break;
-    }
-    case 4: { // UP — pitch negatif
-      raw = Math.max(0, Math.min(1, -pose.pitch / CFG.pitchThreshold));
-      break;
-    }
-    case 5: { // EYES CLOSED — EAR rendah
-      const closedness = (CFG.blinkOpenEar - eyes.ear) / (CFG.blinkOpenEar - CFG.blinkClosedEar);
-      raw = Math.max(0, Math.min(1, closedness));
-      break;
-    }
-    case 6: { // EYES OPEN — EAR tinggi
-      raw = Math.max(0, Math.min(1, (eyes.ear - CFG.blinkClosedEar) / (CFG.blinkOpenEar - CFG.blinkClosedEar)));
-      break;
-    }
-    default:
-      raw = 0;
+    case 1: raw = Math.max(0, Math.min(1, pose.yaw / CFG.yawThreshold)); break;
+    case 2: raw = Math.max(0, Math.min(1, -pose.yaw / CFG.yawThreshold)); break;
+    case 3: raw = Math.max(0, Math.min(1, pose.pitch / CFG.pitchThreshold)); break;
+    case 4: raw = Math.max(0, Math.min(1, -pose.pitch / CFG.pitchThreshold)); break;
+    default: raw = 0;
   }
 
   return Math.max(0, Math.min(1, raw * qFactor));
 }
 
+/* ============================================================
+ * HINTS & POSES
+ * ========================================================== */
+
 const POSES=[
-  'Langkah 1/7: Hadap depan',
-  'Langkah 2/7: Menoleh ke kiri',
-  'Langkah 3/7: Menoleh ke kanan',
-  'Langkah 4/7: Menunduk',
-  'Langkah 5/7: Mendongak',
-  'Langkah 6/7: Pejamkan mata',
-  'Langkah 7/7: Buka mata'
+  'Langkah 1/6: Hadap depan',
+  'Langkah 2/6: Menoleh ke kiri',
+  'Langkah 3/6: Menoleh ke kanan',
+  'Langkah 4/6: Menunduk',
+  'Langkah 5/6: Mendongak',
+  'Langkah 6/6: Berkedip sekali'
 ];
 
 const POSE_HINTS = [
@@ -724,69 +769,187 @@ const POSE_HINTS = [
   { arrow:'<i class="fa-solid fa-arrow-right-long"></i>', cls:'right', text:'Menoleh ke KANAN layar' },
   { arrow:'<i class="fa-solid fa-arrow-down-long"></i>', cls:'down',   text:'Tundukkan kepala' },
   { arrow:'<i class="fa-solid fa-arrow-up-long"></i>', cls:'up',       text:'Dongakkan kepala' },
-  { arrow:'<i class="fa-solid fa-eye-slash"></i>', cls:'blink',        text:'Pejamkan mata' },
-  { arrow:'<i class="fa-solid fa-eye"></i>', cls:'blink',              text:'Buka mata lebar' }
+  { arrow:'<i class="fa-solid fa-eye-slash"></i>', cls:'blink',        text:'Berkedip sekali' }
 ];
 
+const LIVENESS_HINTS = {
+  LEFT:  { arrow:'<i class="fa-solid fa-arrow-left-long"></i>',  cls:'',      text:'Menoleh ke KIRI layar' },
+  RIGHT: { arrow:'<i class="fa-solid fa-arrow-right-long"></i>', cls:'right', text:'Menoleh ke KANAN layar' },
+  BLINK: { arrow:'<i class="fa-solid fa-eye-slash"></i>',        cls:'blink', text:'Berkedip sekali' }
+};
+
 /* ============================================================
- * LIVENESS
+ * LIVENESS (FacePrint In/Out & Update)
+ * Dengan Score Meter real-time
  * ========================================================== */
 
-async function runLiveness(videoId,statusId,challenge){
-  const video=$(videoId);
-  let current=0;
-  let start=performance.now();
-  let blinkWasClosed=false;
+async function runLiveness(videoId, statusId, challenge, uiPrefix){
+  const video = $(videoId);
+  let current = 0;
+  let stableStart = 0;
+  let blinkClosedSeen = false;
 
-  $('challenge-box').classList.remove('hidden');
-  $('challenge-text').textContent=challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
+  // Show challenge box only for scanner (update section has its own flow)
+  if (uiPrefix === 'scan') {
+    $('challenge-box').classList.remove('hidden');
+    $('challenge-text').textContent = challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
+  }
 
-  while(current<challenge.length){
+  initLivenessStepDots(uiPrefix, challenge.length);
+  updateLivenessUI(uiPrefix, 0, null, current, challenge.length);
+
+  while(current < challenge.length){
     if(!scannerRunning && videoId==='scan-video') throw new Error('Scanner dihentikan.');
     if(!updateScannerRunning && videoId==='update-video') throw new Error('Scanner dihentikan.');
 
-    const detection=await faceapi.detectSingleFace(video,new faceapi.SsdMobilenetv1Options({minConfidence:CFG.minDetectorConfidence}))
-      .withFaceLandmarks();
+    const detection = await detectFaceLandmarks(video);
 
     if(!detection){
-      $(statusId).textContent='Wajah tidak terdeteksi';
-      await sleep(100);
+      $(statusId).textContent = 'Wajah tidak terdeteksi';
+      updateLivenessUI(uiPrefix, 0, 'Wajah tidak terdeteksi', current, challenge.length);
+      stableStart = 0;
+      await sleep(120);
       continue;
     }
 
-    const pose=estimatePose(detection.landmarks);
-    const eyes=getEyeState(detection.landmarks);
-    const step=challenge[current];
+    const step = challenge[current];
+    const pose = estimatePose(detection.landmarks);
+    const eyes = getEyeState(detection.landmarks);
 
-    let ok=false;
-    if(step==='LEFT')  ok=pose.yaw >  CFG.yawThreshold;
-    if(step==='RIGHT') ok=pose.yaw < -CFG.yawThreshold;
-    if(step==='BLINK'){
-      if(eyes.closed) blinkWasClosed=true;
-      if(blinkWasClosed && eyes.open) ok=true;
+    let score = 0;
+    let advanced = false;
+
+    if(step === 'BLINK'){
+      if(!blinkClosedSeen && eyes.ear < CFG.blinkClosedEar) blinkClosedSeen = true;
+
+      if(!blinkClosedSeen){
+        const closedness = Math.max(0, Math.min(1,
+          (CFG.blinkOpenEar - eyes.ear) / (CFG.blinkOpenEar - CFG.blinkClosedEar)));
+        score = closedness * 0.5;
+      } else {
+        const openness = Math.max(0, Math.min(1,
+          (eyes.ear - CFG.blinkClosedEar) / (CFG.blinkOpenEar - CFG.blinkClosedEar)));
+        score = 0.5 + openness * 0.5;
+        if(eyes.ear > CFG.blinkOpenEar) advanced = true;
+      }
+    } else if(step === 'LEFT'){
+      score = Math.max(0, Math.min(1, pose.yaw / CFG.yawThreshold));
+      if(score >= 0.85){
+        if(!stableStart) stableStart = performance.now();
+        else if(performance.now() - stableStart >= CFG.livenessStableMs) advanced = true;
+      } else stableStart = 0;
+    } else if(step === 'RIGHT'){
+      score = Math.max(0, Math.min(1, -pose.yaw / CFG.yawThreshold));
+      if(score >= 0.85){
+        if(!stableStart) stableStart = performance.now();
+        else if(performance.now() - stableStart >= CFG.livenessStableMs) advanced = true;
+      } else stableStart = 0;
     }
 
-    $(statusId).textContent='Liveness: '+labelChallenge(step);
+    $(statusId).textContent = 'Liveness: ' + labelChallenge(step);
+    updateLivenessUI(uiPrefix, score, null, current, challenge.length);
 
-    if(ok){
+    if(advanced){
       current++;
-      blinkWasClosed=false;
-      start=performance.now();
-      await sleep(350);
-    }else if(performance.now()-start>15000){
-      throw new Error('Liveness timeout. Silakan ulangi.');
+      stableStart = 0;
+      blinkClosedSeen = false;
+      showLivenessLockBadge(uiPrefix);
+      await sleep(500);
+      hideLivenessLockBadge(uiPrefix);
+      updateLivenessUI(uiPrefix, 0, null, current, challenge.length);
     }
 
     await sleep(80);
   }
 
-  return {pass:true,steps_completed:challenge};
+  updateLivenessUI(uiPrefix, 1, 'Verifikasi selesai', challenge.length, challenge.length);
+  return {pass:true, steps_completed:challenge};
 }
 
 function labelChallenge(x){
   return x==='LEFT'?'Lihat kiri':x==='RIGHT'?'Lihat kanan':'Kedip';
 }
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+/* --- UI Helpers for Liveness --- */
+
+function initLivenessStepDots(prefix, total){
+  const dots = document.querySelectorAll('[data-' + prefix + '-step]');
+  dots.forEach(function(el){
+    const step = Number(el.dataset[prefix + 'Step']);
+    el.style.display = step < total ? '' : 'none';
+    el.classList.remove('done','active');
+    if(step === 0) el.classList.add('active');
+  });
+}
+
+function updateLivenessStepDots(prefix, current, total){
+  const dots = document.querySelectorAll('[data-' + prefix + '-step]');
+  dots.forEach(function(el){
+    const step = Number(el.dataset[prefix + 'Step']);
+    el.classList.remove('done','active');
+    if(step < current) el.classList.add('done');
+    else if(step === current) el.classList.add('active');
+  });
+}
+
+function updateLivenessUI(prefix, score, overrideText, current, total){
+  const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
+  const fill = $(prefix + '-meter-fill');
+  const label = $(prefix + '-meter-label');
+  const status = $(prefix + '-score-status');
+  const hint = $(prefix + '-hint');
+  const hintArrow = $(prefix + '-hint-arrow');
+  const hintText = $(prefix + '-hint-text');
+
+  if(!fill) return;
+
+  fill.style.width = pct + '%';
+  label.textContent = pct + '%';
+  status.textContent = pct + '%';
+
+  if(pct >= 85){
+    hint.classList.remove('text-slate-300','text-yellow-400','text-red-400');
+    hint.classList.add('text-emerald-400');
+    status.className = 'font-mono text-emerald-400';
+    fill.classList.add('locked');
+  } else if(pct >= 40){
+    hint.classList.remove('text-slate-300','text-emerald-400','text-red-400');
+    hint.classList.add('text-yellow-400');
+    status.className = 'font-mono text-yellow-400';
+    fill.classList.remove('locked');
+  } else {
+    hint.classList.remove('text-slate-300','text-emerald-400','text-yellow-400');
+    hint.classList.add('text-red-400');
+    status.className = 'font-mono text-red-400';
+    fill.classList.remove('locked');
+  }
+
+  // Determine hint for current step
+  const challenge = faceSession && faceSession.challenge;
+  let hintKey = null;
+  if(challenge && current < challenge.length) hintKey = challenge[current];
+
+  if(hintKey && LIVENESS_HINTS[hintKey]){
+    const h = LIVENESS_HINTS[hintKey];
+    hintArrow.className = 'pose-arrow ' + (h.cls || '');
+    hintArrow.innerHTML = h.arrow;
+    hintText.textContent = overrideText || h.text;
+  } else if (overrideText) {
+    hintText.textContent = overrideText;
+  }
+
+  updateLivenessStepDots(prefix, current, total);
+}
+
+function showLivenessLockBadge(prefix){
+  const b = $(prefix + '-lock-badge');
+  if(b) b.classList.remove('hidden');
+}
+function hideLivenessLockBadge(prefix){
+  const b = $(prefix + '-lock-badge');
+  if(b) b.classList.add('hidden');
+}
 
 /* ============================================================
  * FACE SESSION / VERIFICATION
@@ -799,11 +962,7 @@ async function newFaceSession(){
 
 async function captureProbe(videoId){
   const video=$(videoId);
-  const detection=await faceapi.detectSingleFace(
-    video,
-    new faceapi.SsdMobilenetv1Options({minConfidence:CFG.minDetectorConfidence})
-  ).withFaceLandmarks().withFaceDescriptor();
-
+  const detection=await detectFaceFull(video);
   if(!detection) throw new Error('Wajah tidak terdeteksi.');
   const quality=estimateQuality(detection,video);
   if(quality<CFG.minQuality) throw new Error('Kualitas wajah terlalu rendah.');
@@ -814,10 +973,10 @@ async function captureProbe(videoId){
   };
 }
 
-async function verifyCurrentFace(videoId,statusId){
+async function verifyCurrentFace(videoId,statusId,uiPrefix){
   if(!faceSession) await newFaceSession();
 
-  const live=await runLiveness(videoId,statusId,faceSession.challenge);
+  const live=await runLiveness(videoId,statusId,faceSession.challenge,uiPrefix);
   const probe=await captureProbe(videoId);
 
   faceVerification=await api('face_verify',{
@@ -860,7 +1019,7 @@ async function startAttendanceScanner(){
     $('challenge-box').classList.remove('hidden');
     $('challenge-text').textContent=session.challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
 
-    const result=await verifyCurrentFace('scan-video','scan-status');
+    const result=await verifyCurrentFace('scan-video','scan-status','scan');
 
     if(!scannerRunning)return;
 
@@ -889,11 +1048,7 @@ function getGPS(){
   }
   navigator.geolocation.getCurrentPosition(
     p=>{
-      gps={
-        latitude:p.coords.latitude,
-        longitude:p.coords.longitude,
-        gps_accuracy:p.coords.accuracy
-      };
+      gps={latitude:p.coords.latitude,longitude:p.coords.longitude,gps_accuracy:p.coords.accuracy};
       $('gps-status').textContent='✓ '+Math.round(gps.gps_accuracy)+' m';
       $('gps-status').className='font-bold text-emerald-400';
     },
@@ -1008,13 +1163,16 @@ async function loginAdmin(event){
   },'Masuk...');
 }
 
+/* ============================================================
+ * ENROLLMENT (6 langkah, blink tunggal)
+ * ========================================================== */
+
 async function startRegistrationCamera(){
   if(!modelsLoaded){alert('Model AI belum siap.');return}
   try{
     registrationRunning=true;
     regStream=await openCamera('reg-video');
     resetEnrollment();
-    // Mulai loop deteksi pose real-time
     runPoseDetectionLoop();
   }catch(e){alert(e.message||'Kamera gagal dibuka.')}
 }
@@ -1025,9 +1183,10 @@ function resetEnrollment(){
   poseStableStart=0;
   poseScoreSmoothed=0;
   poseLocked=false;
+  blinkPoseClosedCaptured=false;
 
   $('pose-text').textContent=POSES[0];
-  $('pose-progress').textContent='0 / 7';
+  $('pose-progress').textContent='0 / 6';
   $('pose-percent').textContent='0%';
   $('pose-bar').style.width='0%';
 
@@ -1037,7 +1196,7 @@ function resetEnrollment(){
 }
 
 function updateStepDots(){
-  document.querySelectorAll('.pose-step-dot').forEach(function(el){
+  document.querySelectorAll('[data-step]').forEach(function(el){
     const step = Number(el.dataset.step);
     el.classList.remove('done','active');
     if (step < currentPose) el.classList.add('done');
@@ -1045,12 +1204,6 @@ function updateStepDots(){
   });
 }
 
-/**
- * Loop deteksi pose real-time selama enrollment berjalan.
- * - Meng-update score meter setiap frame
- * - Auto-lock ketika skor >= threshold dan stabil
- * - Auto-advance ke pose berikutnya
- */
 async function runPoseDetectionLoop(){
   if (poseLoopRunning) return;
   poseLoopRunning = true;
@@ -1058,23 +1211,12 @@ async function runPoseDetectionLoop(){
 
   const video = $('reg-video');
 
-  while (registrationRunning && poseLoopRunning && currentPose < 7) {
+  while (registrationRunning && poseLoopRunning && currentPose < 6) {
     try {
-      if (!video || !video.videoWidth) {
-        await sleep(120);
-        continue;
-      }
+      if (!video || !video.videoWidth) { await sleep(120); continue; }
+      if (poseLocked) { await sleep(80); continue; }
 
-      // Jangan proses saat dalam kondisi lock transisi
-      if (poseLocked) {
-        await sleep(80);
-        continue;
-      }
-
-      const detection = await faceapi.detectSingleFace(
-        video,
-        new faceapi.SsdMobilenetv1Options({ minConfidence: CFG.minDetectorConfidence })
-      ).withFaceLandmarks().withFaceDescriptor();
+      const detection = await detectFaceFull(video);
 
       if (!detection) {
         updatePoseUI(0, 'Wajah tidak terdeteksi');
@@ -1084,19 +1226,22 @@ async function runPoseDetectionLoop(){
       }
 
       const quality = estimateQuality(detection, video);
+
+      // Blink step has its own handling
+      if (currentPose === 5) {
+        await handleBlinkStep(detection, quality);
+        await sleep(60);
+        continue;
+      }
+
+      // Normal pose steps (0..4)
       const score = computePoseScore(currentPose, detection.landmarks, quality);
-
-      // Smoothing untuk menghindari jitter
       poseScoreSmoothed = poseScoreSmoothed * 0.55 + score * 0.45;
-
       updatePoseUI(poseScoreSmoothed);
 
-      // Cek auto-lock
       if (poseScoreSmoothed >= CFG.poseLockThreshold) {
-        if (!poseStableStart) {
-          poseStableStart = performance.now();
-        } else if (performance.now() - poseStableStart >= CFG.poseStableMs) {
-          // Lock dan capture
+        if (!poseStableStart) poseStableStart = performance.now();
+        else if (performance.now() - poseStableStart >= CFG.poseStableMs) {
           await lockAndCaptureCurrentPose(detection, quality);
           poseStableStart = 0;
         }
@@ -1105,7 +1250,6 @@ async function runPoseDetectionLoop(){
       }
 
       await sleep(80);
-
     } catch (err) {
       console.error('Pose loop error:', err);
       await sleep(200);
@@ -1116,9 +1260,66 @@ async function runPoseDetectionLoop(){
 }
 
 /**
- * Update UI score meter.
- * @param {number} score 0..1
- * @param {string} [statusText] optional status override
+ * Handle blink step: satu gerakan kedip menghasilkan 2 sample
+ * (mata tertutup + mata terbuka).
+ */
+async function handleBlinkStep(detection, quality){
+  const eyes = getEyeState(detection.landmarks);
+
+  if (!blinkPoseClosedCaptured) {
+    const closedness = Math.max(0, Math.min(1,
+      (CFG.blinkOpenEar - eyes.ear) / (CFG.blinkOpenEar - CFG.blinkClosedEar)));
+
+    updatePoseUI(closedness * 0.5, 'Tutup mata untuk berkedip');
+
+    if (eyes.ear < CFG.blinkClosedEar) {
+      enrolledSamples.push({
+        pose: 'eyes_closed',
+        descriptor: Array.from(detection.descriptor),
+        quality: quality
+      });
+      blinkPoseClosedCaptured = true;
+      showLockBadge('Mata tertutup ✓');
+      updatePoseUI(0.5);
+    }
+  } else {
+    const openness = Math.max(0, Math.min(1,
+      (eyes.ear - CFG.blinkClosedEar) / (CFG.blinkOpenEar - CFG.blinkClosedEar)));
+
+    updatePoseUI(0.5 + openness * 0.5, 'Buka mata kembali');
+
+    if (eyes.ear > CFG.blinkOpenEar) {
+      enrolledSamples.push({
+        pose: 'eyes_open',
+        descriptor: Array.from(detection.descriptor),
+        quality: quality
+      });
+      blinkPoseClosedCaptured = false;
+
+      // Advance step
+      currentPose++;
+      updateStepDots();
+      const pct = Math.round(currentPose / 6 * 100);
+      $('pose-progress').textContent = currentPose + ' / 6';
+      $('pose-percent').textContent = pct + '%';
+      $('pose-bar').style.width = pct + '%';
+
+      showLockBadge('✓ Terkunci!');
+      await sleep(600);
+      hideLockBadge();
+
+      if (currentPose >= 6) {
+        await finalizeEnrollment();
+      } else {
+        $('pose-text').textContent = POSES[currentPose];
+        updatePoseUI(0);
+      }
+    }
+  }
+}
+
+/**
+ * Update UI score meter (enrollment).
  */
 function updatePoseUI(score, statusText){
   const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
@@ -1133,7 +1334,6 @@ function updatePoseUI(score, statusText){
   label.textContent = pct + '%';
   status.textContent = pct + '%';
 
-  // Warna status: merah < 40, kuning < 85, hijau >= 85
   if (pct >= CFG.poseLockThreshold * 100) {
     hint.classList.remove('text-slate-300','text-yellow-400','text-red-400');
     hint.classList.add('text-emerald-400');
@@ -1151,7 +1351,6 @@ function updatePoseUI(score, statusText){
     fill.classList.remove('locked');
   }
 
-  // Update hint
   const h = POSE_HINTS[currentPose] || POSE_HINTS[0];
   hintArrow.className = 'pose-arrow ' + (h.cls || '');
   hintArrow.innerHTML = h.arrow;
@@ -1159,23 +1358,17 @@ function updatePoseUI(score, statusText){
 }
 
 function showLockBadge(text){
-  const b = $('pose-lock-badge');
   $('pose-lock-text').textContent = text || 'Terkunci!';
-  b.classList.remove('hidden');
+  $('pose-lock-badge').classList.remove('hidden');
 }
-
 function hideLockBadge(){
   $('pose-lock-badge').classList.add('hidden');
 }
 
-/**
- * Kunci pose saat ini, simpan sample, lalu auto-advance.
- */
 async function lockAndCaptureCurrentPose(detection, quality){
   poseLocked = true;
   showLockBadge('✓ Terkunci!');
 
-  // Simpan sample
   enrolledSamples.push({
     pose: poseName(currentPose),
     descriptor: Array.from(detection.descriptor),
@@ -1185,80 +1378,106 @@ async function lockAndCaptureCurrentPose(detection, quality){
   currentPose++;
   updateStepDots();
 
-  const pct = Math.round(currentPose / 7 * 100);
-  $('pose-progress').textContent = currentPose + ' / 7';
+  const pct = Math.round(currentPose / 6 * 100);
+  $('pose-progress').textContent = currentPose + ' / 6';
   $('pose-percent').textContent = pct + '%';
   $('pose-bar').style.width = pct + '%';
 
-  // Flash sebentar
   await sleep(500);
 
   poseLocked = false;
   poseScoreSmoothed = 0;
   hideLockBadge();
 
-  if (currentPose >= 7) {
-    // Semua pose selesai — simpan ke server
+  if (currentPose >= 6) {
     await finalizeEnrollment();
     return;
   }
 
-  // Update instruction ke pose berikutnya
   $('pose-text').textContent = POSES[currentPose];
   updatePoseUI(0);
 }
 
 /**
- * Tombol "Lewati Pose Ini" — maju tanpa menyimpan sample (fallback).
- * Tidak disarankan untuk produksi tapi berguna kalau pose tidak terdeteksi.
+ * Skip pose — paksa capture tanpa menunggu lock.
+ * Untuk blink, akan push 2 sample dari frame saat ini.
  */
 async function skipCurrentPose(){
   if (!registrationRunning) return;
-  if (currentPose >= 7) return;
+  if (currentPose >= 6) return;
 
-  if (!confirm('Lewati pose ini? Sample untuk pose ini tidak akan disimpan.')) return;
-
-  currentPose++;
-  poseStableStart = 0;
-  poseScoreSmoothed = 0;
-  updateStepDots();
-
-  const pct = Math.round(currentPose / 7 * 100);
-  $('pose-progress').textContent = currentPose + ' / 7';
-  $('pose-percent').textContent = pct + '%';
-  $('pose-bar').style.width = pct + '%';
-
-  if (currentPose >= 7) {
-    await finalizeEnrollment();
-    return;
-  }
-
-  $('pose-text').textContent = POSES[currentPose];
-  updatePoseUI(0);
-}
-
-/**
- * Tombol "Paksa Ambil" — paksa capture pose saat ini meski skor rendah.
- */
-async function forceCapturePose(){
-  if (!registrationRunning) return;
-  if (currentPose >= 7) return;
+  if (!confirm('Lewati pose ini? Sample akan diambil paksa dari frame saat ini.')) return;
 
   const video = $('reg-video');
-  const detection = await faceapi.detectSingleFace(
-    video,
-    new faceapi.SsdMobilenetv1Options({ minConfidence: CFG.minDetectorConfidence })
-  ).withFaceLandmarks().withFaceDescriptor();
-
+  const detection = await detectFaceFull(video);
   if (!detection) { alert('Wajah tidak terdeteksi.'); return; }
 
   const quality = estimateQuality(detection, video);
+  const descriptor = Array.from(detection.descriptor);
+
+  if (currentPose === 5) {
+    // Blink: push both samples from current frame
+    enrolledSamples.push({pose:'eyes_closed', descriptor, quality});
+    enrolledSamples.push({pose:'eyes_open', descriptor, quality});
+    currentPose++;
+    updateStepDots();
+    const pct = Math.round(currentPose / 6 * 100);
+    $('pose-progress').textContent = currentPose + ' / 6';
+    $('pose-percent').textContent = pct + '%';
+    $('pose-bar').style.width = pct + '%';
+    showLockBadge('✓ Terkunci!');
+    await sleep(600);
+    hideLockBadge();
+    if (currentPose >= 6) {
+      await finalizeEnrollment();
+    } else {
+      $('pose-text').textContent = POSES[currentPose];
+      updatePoseUI(0);
+    }
+    return;
+  }
+
   await lockAndCaptureCurrentPose(detection, quality);
 }
 
 /**
- * Setelah semua 7 pose selesai — kirim ke server.
+ * Force capture pose saat ini.
  */
+async function forceCapturePose(){
+  if (!registrationRunning) return;
+  if (currentPose >= 6) return;
+
+  const video = $('reg-video');
+  const detection = await detectFaceFull(video);
+  if (!detection) { alert('Wajah tidak terdeteksi.'); return; }
+
+  const quality = estimateQuality(detection, video);
+  const descriptor = Array.from(detection.descriptor);
+
+  if (currentPose === 5) {
+    enrolledSamples.push({pose:'eyes_closed', descriptor, quality});
+    enrolledSamples.push({pose:'eyes_open', descriptor, quality});
+    currentPose++;
+    updateStepDots();
+    const pct = Math.round(currentPose / 6 * 100);
+    $('pose-progress').textContent = currentPose + ' / 6';
+    $('pose-percent').textContent = pct + '%';
+    $('pose-bar').style.width = pct + '%';
+    showLockBadge('✓ Terkunci!');
+    await sleep(600);
+    hideLockBadge();
+    if (currentPose >= 6) {
+      await finalizeEnrollment();
+    } else {
+      $('pose-text').textContent = POSES[currentPose];
+      updatePoseUI(0);
+    }
+    return;
+  }
+
+  await lockAndCaptureCurrentPose(detection, quality);
+}
+
 async function finalizeEnrollment(){
   poseLoopRunning = false;
   registrationRunning = false;
@@ -1297,12 +1516,12 @@ async function finalizeEnrollment(){
             '</div>'
     });
 
-    $('reg-username').value = '';
-    $('reg-password').value = '';
-    $('reg-ic').value = '';
-    $('reg-name').value = '';
-    $('reg-phone').value = '';
-    $('reg-phone2').value = '';
+    $('reg-username').value='';
+    $('reg-password').value='';
+    $('reg-ic').value='';
+    $('reg-name').value='';
+    $('reg-phone').value='';
+    $('reg-phone2').value='';
 
     goHome();
   } catch (e) {
@@ -1314,16 +1533,14 @@ async function finalizeEnrollment(){
 }
 
 function poseName(i){
-  return ['front','left','right','down','up','eyes_closed','eyes_open'][i];
+  return ['front','left','right','down','up','blink'][i];
 }
 
 function averageQuality(samples){
   if(!samples || !samples.length) return CFG.minQuality;
   let sum=0, count=0;
   samples.forEach(function(s){
-    if(s && typeof s.quality==='number' && isFinite(s.quality)){
-      sum+=s.quality; count++;
-    }
+    if(s && typeof s.quality==='number' && isFinite(s.quality)){ sum+=s.quality; count++; }
   });
   return count ? (sum/count) : CFG.minQuality;
 }
@@ -1383,7 +1600,7 @@ async function startUpdateScan(){
     updateScannerRunning=true;
     updateStream=await openCamera('update-video');
     faceSession=await newFaceSession();
-    const result=await verifyCurrentFace('update-video','update-status');
+    const result=await verifyCurrentFace('update-video','update-status','update');
 
     stopStream(updateStream);updateStream=null;
     updateScannerRunning=false;
@@ -1439,10 +1656,7 @@ function optionalFile(file){
   return new Promise((resolve,reject)=>{
     if(file.size>5*1024*1024){reject(new Error('File terlalu besar.'));return}
     const reader=new FileReader();
-    reader.onload=()=>resolve({
-      base64:String(reader.result).split(',')[1],
-      mimeType:file.type
-    });
+    reader.onload=()=>resolve({base64:String(reader.result).split(',')[1],mimeType:file.type});
     reader.onerror=reject;
     reader.readAsDataURL(file);
   });
