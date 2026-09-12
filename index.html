@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V2 — Bio Attendance System</title>
+<title>FacePrint V2.1.1 — Bio Attendance System</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,7 +40,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V2 — server-side verification</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V2.1.1 — server-side verification</p>
   </div>
 
   <div class="space-y-3">
@@ -107,6 +107,29 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
     <h2 class="font-bold">Pendaftaran FacePrint V2</h2>
     <button onclick="goHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
+  </div>
+
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
+    <div class="flex justify-between items-center">
+      <div>
+        <div class="font-semibold text-sm">Sesi Administrator</div>
+        <div id="admin-session-info" class="text-xs text-slate-400">Terautentikasi sebagai admin</div>
+      </div>
+      <button type="button" class="btn bg-zinc-800 border border-zinc-700" onclick="logoutAdmin()">Keluar</button>
+    </div>
+    <div class="grid md:grid-cols-2 gap-3">
+      <input id="change-current-password" type="password" class="bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Password semasa">
+      <input id="change-new-password" type="password" class="bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Password baru (min. 12 karakter)">
+    </div>
+    <button type="button" class="btn w-full bg-zinc-800 border border-zinc-700" onclick="changeMyPassword()">Tukar Password Admin</button>
+    <div class="border-t border-zinc-800 pt-3">
+      <div class="text-xs text-slate-400 mb-2">Reset password user</div>
+      <div class="grid md:grid-cols-2 gap-3">
+        <input id="reset-user-id" class="bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3" placeholder="User ID (USR-...)">
+        <input id="reset-new-password" type="password" class="bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Password baru (min. 12 karakter)">
+      </div>
+      <button type="button" class="btn w-full mt-3 bg-zinc-800 border border-zinc-700" onclick="resetUserPassword()">Reset Password User</button>
+    </div>
   </div>
 
   <div class="grid md:grid-cols-2 gap-3">
@@ -192,9 +215,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 /* ============================================================
  * CONFIG
  * ========================================================== */
-const API_URL = "https://script.google.com/macros/s/AKfycbx7ZnGxtPC1mMq6d-f4AUcCNAWbIjGJTF5hqs1hHnvbhOU2NGvFW7EF1rn71qeCcu_n/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwtoOrAfkHOQNDGDzIFdPMA6L4mO8cIvDzhib5x-AW-qMc3Amu12HNG1nHlMQkJJ2RC/exec";
 const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
 
+// Public thresholds are loaded from the V2 backend so frontend policy cannot drift
+// from the server configuration. The server remains authoritative.
 const CFG = {
   targetFps: 8,
   minDetectorConfidence: 0.45,
@@ -273,8 +298,15 @@ async function api(action,payload={}){
     body:JSON.stringify(body)
   });
 
-  const result=await response.json();
-  if(!result.success && result.error) throw new Error(result.error);
+  let result;
+  try { result=await response.json(); }
+  catch(e){ throw new Error('Respons server tidak valid.'); }
+  if(!result.success && result.error){
+    if(/session (tidak valid|tidak aktif|telah kedaluwarsa)/i.test(result.error)){
+      clearLocalSession();
+    }
+    throw new Error(result.error);
+  }
   return result;
 }
 
@@ -289,7 +321,38 @@ async function loadModels(){
     alert('Model AI gagal dimuat.');
   }
 }
-window.addEventListener('load',loadModels);
+async function loadServerConfig(){
+  try{
+    const result=await api('public_config');
+    const c=result.config||{};
+    if(Number.isFinite(c.min_face_quality)) CFG.minQuality=c.min_face_quality;
+    if(Number.isFinite(c.max_radius_meters)) CFG.maxRadiusMeters=c.max_radius_meters;
+    if(Number.isFinite(c.max_gps_accuracy_meters)) CFG.maxGpsAccuracyMeters=c.max_gps_accuracy_meters;
+    const v=c.app_version||'2.0.0';
+    document.querySelector('h1')?.nextElementSibling && (document.querySelector('h1').nextElementSibling.textContent='FacePrint V'+v+' — server-side verification');
+  }catch(e){ console.warn('Server config gagal dimuat:',e.message); }
+}
+
+function clearLocalSession(){
+  authToken=''; currentUser=null;
+  localStorage.removeItem('faceprint_v2_token');
+  setSessionBadge();
+}
+
+async function restoreSession(){
+  if(!authToken) return;
+  try{
+    const result=await api('auth_me');
+    currentUser=result.user;
+    setSessionBadge();
+  }catch(e){ clearLocalSession(); }
+}
+
+window.addEventListener('load',async()=>{
+  await loadServerConfig();
+  await restoreSession();
+  await loadModels();
+});
 
 /* ============================================================
  * CAMERA
@@ -645,8 +708,11 @@ async function loginAdmin(event){
     localStorage.setItem('faceprint_v2_token',authToken);
     setSessionBadge();
 
-    if(currentUser.role!=='admin') throw new Error('Akun bukan administrator.');
-
+    if(String(currentUser.role).toLowerCase()!=='admin'){
+      clearLocalSession();
+      throw new Error('Akun bukan administrator.');
+    }
+    $('admin-session-info').textContent='Admin: '+currentUser.name+' ('+currentUser.username+')';
     show('registration');
     startRegistrationCamera();
   }catch(e){
@@ -770,6 +836,51 @@ function poseName(i){
 function averageQuality(samples){
   // Enrollment quality is validated per sample; use a conservative baseline.
   return CFG.minQuality;
+}
+
+async function logoutAdmin(){
+  try{ if(authToken) await api('auth_logout'); }catch(e){ console.warn(e); }
+  clearLocalSession();
+  stopAllCameras();
+  registrationRunning=false;
+  goHome();
+}
+
+async function changeMyPassword(){
+  if(!authToken){ alert('Sesi admin tidak aktif.'); return; }
+  const current=$('change-current-password').value;
+  const next=$('change-new-password').value;
+  if(!current||!next){ alert('Isi password semasa dan password baru.'); return; }
+  try{
+    const result=await api('change_password',{
+      session_token:authToken,
+      current_password:current,
+      new_password:next,
+      device_info:navigator.userAgent
+    });
+    alert(result.message||'Password berjaya ditukar.');
+    $('change-current-password').value='';
+    $('change-new-password').value='';
+  }catch(e){ alert(e.message||'Gagal menukar password.'); }
+}
+
+async function resetUserPassword(){
+  if(!authToken){ alert('Sesi admin tidak aktif.'); return; }
+  const target=$('reset-user-id').value.trim();
+  const next=$('reset-new-password').value;
+  if(!target||!next){ alert('Isi User ID dan password baru.'); return; }
+  if(!confirm('Reset password untuk '+target+'? Semua session user tersebut akan dibatalkan.')) return;
+  try{
+    const result=await api('admin_reset_password',{
+      session_token:authToken,
+      target_user_id:target,
+      new_password:next,
+      device_info:navigator.userAgent
+    });
+    alert(result.message||'Password user berjaya direset.');
+    $('reset-user-id').value='';
+    $('reset-new-password').value='';
+  }catch(e){ alert(e.message||'Gagal reset password.'); }
 }
 
 /* ============================================================
