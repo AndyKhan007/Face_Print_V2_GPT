@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V3.4.0 — MediaPipe + ONNX</title>
+<title>FacePrint V3.4.1 — MediaPipe + ONNX</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,6 +80,94 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 @keyframes checkPop{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
 #action-loading{transition:opacity .25s ease-out}
 #action-loading.fade-out{opacity:0}
+
+/* ============================================================
+   LIVENESS LOCK & INTRO OVERLAYS (V3.4.1)
+   ============================================================ */
+.lock-prominent {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 16px;
+  z-index: 10;
+  animation: lockFadeIn 0.3s ease-out;
+}
+.lock-prominent-inner {
+  text-align: center;
+  animation: lockPopIn 0.5s ease-out;
+}
+.lock-prominent-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(50, 222, 132, 0.2);
+  border: 4px solid #32de84;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: #32de84;
+  font-size: 2.5rem;
+  box-shadow: 0 0 40px rgba(50, 222, 132, 0.6);
+  animation: lockIconPulse 0.6s ease-in-out infinite alternate;
+}
+.lock-prominent-title {
+  color: #32de84;
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+}
+.lock-prominent-subtitle {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin-top: 6px;
+}
+@keyframes lockFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lockPopIn {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes lockIconPulse {
+  from { box-shadow: 0 0 40px rgba(50, 222, 132, 0.6); }
+  to { box-shadow: 0 0 70px rgba(50, 222, 132, 0.9); }
+}
+.intro-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+  border-radius: 16px;
+  z-index: 9;
+  animation: lockFadeIn 0.3s ease-out;
+}
+.intro-inner {
+  text-align: center;
+  animation: lockPopIn 0.4s ease-out;
+}
+.intro-icon {
+  font-size: 3rem;
+  color: #facc15;
+  margin-bottom: 12px;
+  animation: blinkPulse 1s ease-in-out infinite;
+}
+.intro-title {
+  color: #facc15;
+  font-weight: 800;
+  font-size: 1.3rem;
+}
+.intro-countdown {
+  color: #fff;
+  font-size: 2.5rem;
+  font-weight: 900;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
 </style>
 </head>
 
@@ -163,7 +251,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V3.4.0 — MediaPipe + ONNX</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V3.4.1 — MediaPipe + ONNX</p>
   </div>
   <div class="space-y-3">
     <button id="btn-start-in" class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
@@ -181,7 +269,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </section>
 
-<!-- SCANNER (Face In/Out) -->
+<!-- SCANNER -->
 <section id="scanner" class="hidden card w-full max-w-2xl p-5 space-y-5">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
     <h2 id="scanner-title" class="font-bold text-lg">FacePrint In</h2>
@@ -238,10 +326,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div class="w-64 h-64 rounded-full border-2 border-dashed border-emerald-400/80"></div>
       </div>
-      <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs">
+      <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs z-20">
         <span id="scan-status">Mempersiapkan kamera...</span>
       </div>
-      <div id="scan-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg">
+      <div id="scan-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg z-20">
         <i class="fa-solid fa-check mr-1"></i><span id="scan-lock-text">Terkunci!</span>
       </div>
     </div>
@@ -407,13 +495,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   <div id="reg-step-2" class="hidden space-y-4">
     <div class="video-wrap">
       <video id="reg-video" autoplay playsinline muted></video>
-      <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs text-center">
+      <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs text-center z-20">
         <span id="pose-text">Langkah 1/8: Hadap depan</span>
       </div>
-      <div id="pose-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg">
+      <div id="pose-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg z-20">
         <i class="fa-solid fa-check mr-1"></i><span id="pose-lock-text">Terkunci!</span>
       </div>
-      <div id="reg-eye-indicator" class="hidden absolute bottom-3 right-3">
+      <div id="reg-eye-indicator" class="hidden absolute bottom-3 right-3 z-20">
         <div class="eye-indicator" id="eye-indicator-icon"><i class="fa-solid fa-eye"></i></div>
       </div>
     </div>
@@ -484,16 +572,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </section>
 
-<!-- ============================================================
-     UPDATE DOKUMEN & DATA — SISTEMATIS V3.4.0
-     ============================================================ -->
+<!-- UPDATE -->
 <section id="update" class="hidden card w-full max-w-2xl p-5 space-y-5">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
     <h2 class="font-bold">Update Dokumen & Data</h2>
     <button onclick="cancelUpdateAndHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
   </div>
 
-  <!-- Step indicator -->
   <div class="flex items-center gap-2">
     <div class="step-box active" id="update-step-box-1">
       <div class="step-num">1</div>
@@ -511,16 +596,12 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     </div>
   </div>
 
-  <!-- STEP 1: PERSIAPAN -->
   <div id="update-step-1" class="space-y-4">
     <div class="text-center py-6">
       <i class="fa-solid fa-user-pen text-6xl text-emerald-400 mb-4"></i>
       <div class="font-bold text-lg">Verifikasi Wajah untuk Update</div>
-      <div class="text-sm text-slate-400 mt-2">
-        Anda harus terverifikasi wajah sebelum mengubah data.
-      </div>
+      <div class="text-sm text-slate-400 mt-2">Anda harus terverifikasi wajah sebelum mengubah data.</div>
     </div>
-
     <div class="bg-zinc-900 rounded-xl p-4 text-xs text-slate-400 space-y-2">
       <div class="flex items-start gap-2">
         <i class="fa-solid fa-circle-info text-emerald-400 mt-0.5"></i>
@@ -538,27 +619,24 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
         <div>Verifikasi menggunakan engine MediaPipe + MobileFaceNet sesuai parameter server.</div>
       </div>
     </div>
-
     <button id="btn-update-start-scan" class="btn w-full bg-emerald-400 text-black" onclick="startUpdateScanner()">
       <i class="fa-solid fa-play mr-2"></i>Mulai Verifikasi Wajah
     </button>
   </div>
 
-  <!-- STEP 2: VERIFIKASI WAJAH -->
   <div id="update-step-2" class="hidden space-y-4">
     <div class="video-wrap">
       <video id="update-video" autoplay playsinline muted></video>
       <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div class="w-64 h-64 rounded-full border-2 border-dashed border-emerald-400"></div>
       </div>
-      <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs">
+      <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs z-20">
         <span id="update-status">Mempersiapkan...</span>
       </div>
-      <div id="update-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg">
+      <div id="update-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg z-20">
         <i class="fa-solid fa-check mr-1"></i><span id="update-lock-text">Terkunci!</span>
       </div>
     </div>
-
     <div class="space-y-2">
       <div class="flex justify-between items-center text-xs">
         <span class="text-slate-400">Progress pose</span>
@@ -574,32 +652,27 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
         <span id="update-hint-text">Bersiap...</span>
       </div>
     </div>
-
     <div class="flex justify-between items-center gap-1">
       <div class="pose-step-dot" data-update-step="0"></div>
       <div class="pose-step-dot" data-update-step="1"></div>
     </div>
   </div>
 
-  <!-- STEP 3: EDIT & SIMPAN -->
   <div id="update-step-3" class="hidden space-y-4">
     <div class="bg-emerald-500/10 border border-emerald-500/40 rounded-xl p-4 text-center">
       <i class="fa-solid fa-circle-check text-4xl text-emerald-400 mb-2"></i>
       <div class="font-bold text-emerald-400">Wajah Terverifikasi</div>
       <div class="text-xs text-slate-400 mt-1">Anda dapat mengubah data berikut.</div>
     </div>
-
     <div class="grid md:grid-cols-2 gap-3 bg-zinc-900 rounded-xl p-4">
       <div><span class="text-xs text-slate-400">IC</span><div id="up-ic" class="font-mono">-</div></div>
       <div><span class="text-xs text-slate-400">Nama</span><div id="up-name" class="font-semibold">-</div></div>
       <div class="md:col-span-2"><span class="text-xs text-slate-400">Alamat</span><div id="up-address">-</div></div>
     </div>
-
     <input id="up-phone" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="No. telefon">
     <input id="up-phone2" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="No. telefon 2">
     <input id="up-file1" type="file" accept="image/*" class="w-full text-sm">
     <input id="up-file2" type="file" accept="image/*" class="w-full text-sm">
-
     <div class="grid grid-cols-2 gap-3">
       <button type="button" class="btn bg-zinc-800 border border-zinc-700" onclick="cancelUpdateToStep2()">
         <i class="fa-solid fa-arrow-left mr-2 text-slate-400"></i>Rekam Ulang
@@ -697,20 +770,13 @@ function goHome(){
 }
 function showAdminLogin(){show('admin-login')}
 function showUpdate(){
-  // Reset state update
-  faceSession = null;
-  faceVerification = null;
-  currentUpdateUser = null;
+  faceSession = null; faceVerification = null; currentUpdateUser = null;
   updateScannerRunning = false;
-
   show('update');
-  // Reset step view
   $('update-step-1').classList.remove('hidden');
   $('update-step-2').classList.add('hidden');
   $('update-step-3').classList.add('hidden');
   setUpdateStep(1);
-
-  // Reset form
   $('up-ic').textContent = '-';
   $('up-name').textContent = '-';
   $('up-address').textContent = '-';
@@ -736,14 +802,13 @@ function setSessionBadge(){
 }
 
 /* ============================================================
- * ACTION LOADING OVERLAY
+ * LOADING OVERLAY
  * ========================================================== */
 function showLoading(title, msg, iconType) {
   const el = $('action-loading');
   const wrap = $('action-loading-icon-wrap');
   $('action-loading-title').textContent = title || 'Memproses...';
   $('action-loading-msg').textContent = msg || 'Mohon tunggu';
-
   if (iconType === 'success') {
     wrap.innerHTML = '<div class="absolute inset-0 rounded-full bg-emerald-500/20 flex items-center justify-center"><i class="fa-solid fa-check text-emerald-400 text-4xl"></i></div>';
   } else if (iconType === 'error') {
@@ -760,7 +825,7 @@ function hideLoading() {
 }
 
 /* ============================================================
- * SPLASH SCREEN
+ * SPLASH
  * ========================================================== */
 function splashSetProgress(percent, statusText) {
   const bar = $('splash-progress-bar');
@@ -914,7 +979,6 @@ async function loadServerConfig(){
   try{
     const result = await api('public_config');
     const c = result.config || {};
-
     if(Number.isFinite(c.min_face_quality))         CFG.minQuality = Math.min(c.min_face_quality, 0.65);
     if(Number.isFinite(c.face_match_threshold))     CFG.faceMatchThreshold = c.face_match_threshold;
     if(Number.isFinite(c.min_match_margin))         CFG.minMatchMargin = c.min_match_margin;
@@ -937,24 +1001,15 @@ async function loadServerConfig(){
     if(Number.isFinite(c.pose_lock_threshold))      CFG.poseLockThreshold = c.pose_lock_threshold;
     if(Number.isFinite(c.pose_stable_ms))           CFG.poseStableMs = c.pose_stable_ms;
     if(Number.isFinite(c.liveness_stable_ms))       CFG.livenessStableMs = c.liveness_stable_ms;
-
     if(c.office_lat !== null && c.office_lat !== undefined &&
        c.office_lng !== null && c.office_lng !== undefined &&
        Number.isFinite(Number(c.office_lat)) && Number.isFinite(Number(c.office_lng))){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
-
-    const v = c.app_version || '3.4.0';
+    const v = c.app_version || '3.4.1';
     const subtitle = document.querySelector('#home h1 + p');
     if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — MediaPipe + ONNX';
-
-    console.log('[CFG] Server config loaded:', {
-      faceMatch: CFG.faceMatchThreshold, minQuality: CFG.minQuality,
-      minFacePixels: CFG.minFacePixels, yawTh: CFG.yawThreshold, pitchTh: CFG.pitchThreshold,
-      frontYawDead: CFG.frontYawDead, frontPitchDead: CFG.frontPitchDead,
-      blinkTh: CFG.blinkThreshold, jawOpenTh: CFG.jawOpenThreshold, smileTh: CFG.smileThreshold,
-      poseLock: CFG.poseLockThreshold, poseStable: CFG.poseStableMs, livenessStable: CFG.livenessStableMs
-    });
+    console.log('[CFG] Server config loaded');
   }catch(e){ console.warn('Server config gagal dimuat:', e.message); }
 }
 
@@ -1228,31 +1283,19 @@ function startFaceRegistration(){
   const password = $('reg-password').value;
   const ic = $('reg-ic').value.trim();
   const name = $('reg-name').value.trim();
-
   if(!username || !password || !ic || !name){
     Swal.fire({icon:'warning', title:'Data belum lengkap', text:'Username, password, IC, dan nama wajib diisi.', background:'#1c1c1e', color:'#fff'});
     return;
   }
-  if(username.length < 3){
-    Swal.fire({icon:'warning', title:'Username terlalu pendek', text:'Minimal 3 karakter.', background:'#1c1c1e', color:'#fff'});
-    return;
-  }
-  if(password.length < 12){
-    Swal.fire({icon:'warning', title:'Password terlalu pendek', text:'Minimal 12 karakter.', background:'#1c1c1e', color:'#fff'});
-    return;
-  }
-  if(!modelsLoaded){
-    Swal.fire({icon:'error', title:'Model AI belum siap', text:'Tunggu beberapa detik lagi.', background:'#1c1c1e', color:'#fff'});
-    return;
-  }
-
+  if(username.length < 3){ Swal.fire({icon:'warning', title:'Username terlalu pendek', text:'Minimal 3 karakter.', background:'#1c1c1e', color:'#fff'}); return; }
+  if(password.length < 12){ Swal.fire({icon:'warning', title:'Password terlalu pendek', text:'Minimal 12 karakter.', background:'#1c1c1e', color:'#fff'}); return; }
+  if(!modelsLoaded){ Swal.fire({icon:'error', title:'Model AI belum siap', text:'Tunggu beberapa detik lagi.', background:'#1c1c1e', color:'#fff'}); return; }
   $('reg-step-1').classList.add('hidden');
   $('reg-step-2').classList.remove('hidden');
   $('reg-step-3').classList.add('hidden');
   setRegStep(2);
   startRegistrationCamera();
 }
-
 async function startRegistrationCamera(){
   try{
     registrationRunning = true;
@@ -1267,7 +1310,6 @@ async function startRegistrationCamera(){
     backToStep1();
   }
 }
-
 function resetEnrollmentUI(){
   currentPose = 0; enrolledSamples = [];
   poseStableStart = 0; poseScoreSmoothed = 0; poseLocked = false;
@@ -1308,18 +1350,15 @@ function backToFaceRegistration(){
   setRegStep(2);
   startRegistrationCamera();
 }
-
 async function runPoseDetectionLoop(){
   if(poseLoopRunning) return;
   poseLoopRunning = true;
   poseStableStart = 0;
   const video = $('reg-video');
-
   while(registrationRunning && poseLoopRunning && currentPose < 8){
     try{
       if(!video || !video.videoWidth){ await sleep(60); continue; }
       if(poseLocked){ await sleep(40); continue; }
-
       const results = await detectFaceMediaPipe(video);
       if(!results){
         updatePoseUI(0, 'Wajah tidak terdeteksi');
@@ -1327,31 +1366,25 @@ async function runPoseDetectionLoop(){
         await sleep(80);
         continue;
       }
-
       const landmarks = results.faceLandmarks[0];
       const blendshapes = results.faceBlendshapes;
       const vw = video.videoWidth, vh = video.videoHeight;
       const quality = computeQualityFromLandmarks(landmarks, vw, vh);
-
       if(currentPose === 7){
         await handleBlinkStep(landmarks, blendshapes, quality, video);
         await sleep(25);
         continue;
       }
-
       const score = computePoseScore(currentPose, landmarks, blendshapes, vw, vh, quality);
       poseScoreSmoothed = poseScoreSmoothed * 0.35 + score * 0.65;
       updatePoseUI(poseScoreSmoothed);
-
       if(poseScoreSmoothed >= CFG.poseLockThreshold){
         if(!poseStableStart) poseStableStart = performance.now();
         else if(performance.now() - poseStableStart >= CFG.poseStableMs){
           await lockAndCapturePose(landmarks, quality, video);
           poseStableStart = 0;
         }
-      } else {
-        poseStableStart = 0;
-      }
+      } else { poseStableStart = 0; }
       await sleep(25);
     }catch(err){
       console.error('Pose loop error:', err);
@@ -1360,12 +1393,10 @@ async function runPoseDetectionLoop(){
   }
   poseLoopRunning = false;
 }
-
 function computePoseScore(poseIndex, landmarks, blendshapes, vw, vh, quality){
   const pose = estimatePose(landmarks, vw, vh);
   const qFactor = Math.max(0, Math.min(1, quality / CFG.minQuality));
   let raw = 0;
-
   switch(poseIndex){
     case 0: {
       const yawAbs = Math.abs(pose.yaw), pitchAbs = Math.abs(pose.pitch);
@@ -1400,21 +1431,17 @@ function computePoseScore(poseIndex, landmarks, blendshapes, vw, vh, quality){
   }
   return Math.max(0, Math.min(1, raw * qFactor));
 }
-
 async function handleBlinkStep(landmarks, blendshapes, quality, video){
   const blinkL = getBlendshape(blendshapes, 'eyeBlinkLeft');
   const blinkR = getBlendshape(blendshapes, 'eyeBlinkRight');
   const isClosed = (blinkL > CFG.blinkThreshold && blinkR > CFG.blinkThreshold);
-
   const eyeIcon = $('eye-indicator-icon');
   if(eyeIcon){
     if(isClosed){ eyeIcon.classList.add('closed'); eyeIcon.innerHTML = '<i class="fa-solid fa-eye-slash"></i>'; }
     else { eyeIcon.classList.remove('closed'); eyeIcon.innerHTML = '<i class="fa-solid fa-eye"></i>'; }
   }
-
   const now = performance.now();
   if(now - blinkLastDetected < 300){ updatePoseUI(blinkProgress / BLINK_TARGET); return; }
-
   if(blinkFSMState === 'waiting'){
     if(isClosed){ blinkFSMState = 'closed'; blinkClosedTime = now; }
     const prog = isClosed ? 0.5 : 0;
@@ -1427,7 +1454,6 @@ async function handleBlinkStep(landmarks, blendshapes, quality, video){
       const aligned = alignFaceToCanvas(video, landmarks, 112);
       const embedding = await getFaceEmbedding(aligned);
       enrolledSamples.push({ pose: 'blink_' + blinkProgress, descriptor: embedding, quality });
-
       updatePoseUI(blinkProgress / BLINK_TARGET, `Kedip ${blinkProgress}/${BLINK_TARGET} OK`);
       if(blinkProgress < BLINK_TARGET){
         showLockBadge(`Kedip ${blinkProgress}/${BLINK_TARGET} OK`);
@@ -1451,7 +1477,6 @@ async function handleBlinkStep(landmarks, blendshapes, quality, video){
     }
   }
 }
-
 function updatePoseUI(score, statusText){
   const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
   const fill = $('pose-meter-fill');
@@ -1469,36 +1494,30 @@ function updatePoseUI(score, statusText){
   hintArrow.innerHTML = h.arrow;
   hintText.textContent = statusText || h.text;
 }
-
 function showLockBadge(text){ $('pose-lock-text').textContent = text||'Terkunci!'; $('pose-lock-badge').classList.remove('hidden'); }
 function hideLockBadge(){ $('pose-lock-badge').classList.add('hidden'); }
-
 async function lockAndCapturePose(landmarks, quality, video){
   poseLocked = true;
   showLockBadge('Terkunci!');
   const aligned = alignFaceToCanvas(video, landmarks, 112);
   const embedding = await getFaceEmbedding(aligned);
   enrolledSamples.push({ pose: poseName(currentPose), descriptor: embedding, quality });
-
   currentPose++;
   updateStepDots();
   const pct = Math.round(currentPose / 8 * 100);
   $('pose-progress').textContent = currentPose + ' / 8';
   $('pose-percent').textContent = pct + '%';
   $('pose-bar').style.width = pct + '%';
-
   await sleep(400);
   poseLocked = false;
   poseScoreSmoothed = 0;
   hideLockBadge();
-
   if(currentPose >= 8){ finishFaceCapture(); return; }
   $('pose-text').textContent = POSES[currentPose];
   updatePoseUI(0);
   if(currentPose === 7){ $('reg-eye-indicator').classList.remove('hidden'); }
   else { $('reg-eye-indicator').classList.add('hidden'); }
 }
-
 async function forceCapturePose(){
   if(!registrationRunning) return;
   if(currentPose >= 8) return;
@@ -1524,7 +1543,6 @@ async function forceCapturePose(){
   }
   await lockAndCapturePose(landmarks, quality, video);
 }
-
 function poseName(i){ return ['front','left','right','down','up','mouth_open','smile','blink'][i]; }
 function averageQuality(samples){
   if(!samples || !samples.length) return CFG.minQuality;
@@ -1532,25 +1550,21 @@ function averageQuality(samples){
   samples.forEach(s => { if(s && typeof s.quality === 'number' && isFinite(s.quality)){ sum+=s.quality; count++; } });
   return count ? (sum/count) : CFG.minQuality;
 }
-
 function finishFaceCapture(){
   faceCaptureDone = true;
   registrationRunning = false;
   poseLoopRunning = false;
   stopAllCameras();
-
   $('summary-username').textContent = $('reg-username').value.trim();
   $('summary-name').textContent = $('reg-name').value.trim();
   $('summary-ic').textContent = $('reg-ic').value.trim();
   $('summary-role').textContent = $('reg-role').value;
   $('summary-samples').textContent = enrolledSamples.length + ' pose';
-
   $('reg-step-1').classList.add('hidden');
   $('reg-step-2').classList.add('hidden');
   $('reg-step-3').classList.remove('hidden');
   setRegStep(3);
 }
-
 async function submitRegistration(){
   if(!faceCaptureDone || !enrolledSamples.length){
     Swal.fire({icon:'warning', title:'Data wajah belum siap', background:'#1c1c1e', color:'#fff'});
@@ -1560,11 +1574,9 @@ async function submitRegistration(){
     Swal.fire({icon:'warning', title:'Sample kurang', text:'Minimal ' + ENROLL_MIN + ' sample. Sekarang: ' + enrolledSamples.length, background:'#1c1c1e', color:'#fff'});
     return;
   }
-
   const btn = $('btn-submit-registration');
   setBusy(btn, true, 'Mendaftarkan...');
   showLoading('Mendaftarkan User', 'Membuat akun...');
-
   try{
     const user = await api('register_user', {
       username: $('reg-username').value.trim(),
@@ -1576,7 +1588,6 @@ async function submitRegistration(){
       role: $('reg-role').value,
       device_info: navigator.userAgent
     });
-
     showLoading('Mendaftarkan User', 'Menyimpan data biometrik...');
     await api('enroll_biometric', {
       user_id: user.user.user_id,
@@ -1585,11 +1596,9 @@ async function submitRegistration(){
       liveness_method: 'mediapipe-onnx',
       device_info: navigator.userAgent
     });
-
     showLoading('Berhasil!', 'Pendaftaran selesai.', 'success');
     await sleep(1200);
     hideLoading();
-
     await Swal.fire({
       icon:'success', title:'Pendaftaran Berhasil',
       background:'#1c1c1e', color:'#fff',
@@ -1600,7 +1609,6 @@ async function submitRegistration(){
         '<b>Role:</b> '+escapeHtml(user.user.role)+'<br>' +
         '<b>Sample:</b> '+enrolledSamples.length+' pose</div>'
     });
-
     ['reg-username','reg-password','reg-ic','reg-name','reg-phone','reg-phone2'].forEach(id => $(id).value = '');
     enrolledSamples = []; faceCaptureDone = false;
     backToStep1();
@@ -1608,9 +1616,7 @@ async function submitRegistration(){
     showLoading('Gagal', e.message || 'Pendaftaran gagal.', 'error');
     await sleep(1500);
     hideLoading();
-  } finally {
-    setBusy(btn, false);
-  }
+  } finally { setBusy(btn, false); }
 }
 
 /* ============================================================
@@ -1620,39 +1626,29 @@ function startAttendance(type){
   const btn = type==='in' ? $('btn-start-in') : $('btn-start-out');
   attendanceType = type;
   if(!modelsLoaded){ alert('Model AI belum siap.'); return; }
-
-  faceSession = null;
-  faceVerification = null;
-  gps = null;
-
+  faceSession = null; faceVerification = null; gps = null;
   show('scanner');
   $('scanner-title').textContent = type==='in' ? 'FacePrint In' : 'FacePrint Out';
-
   $('scan-step-1').classList.remove('hidden');
   $('scan-step-2').classList.add('hidden');
   $('scan-step-3').classList.add('hidden');
   setScanStep(1);
-
   $('prep-camera-status').textContent = 'Menunggu';
   $('prep-camera-status').className = 'text-slate-400';
   $('prep-gps-status').textContent = 'Menunggu';
   $('prep-gps-status').className = 'text-slate-400';
   $('prep-gps-detail').classList.add('hidden');
-
   getGPSForPrep();
   setBusy(btn, false);
 }
-
 async function getGPSForPrep(){
   $('prep-gps-status').textContent = 'Mencari...';
   $('prep-gps-status').className = 'text-yellow-400';
-
   if(!navigator.geolocation){
     $('prep-gps-status').textContent = 'Tidak didukung';
     $('prep-gps-status').className = 'text-red-400';
     return;
   }
-
   navigator.geolocation.getCurrentPosition(
     p=>{
       gps = { latitude:p.coords.latitude, longitude:p.coords.longitude, gps_accuracy:p.coords.accuracy };
@@ -1684,18 +1680,15 @@ async function getGPSForPrep(){
     {enableHighAccuracy:true, timeout:15000, maximumAge:0}
   );
 }
-
 async function startAttendanceScanner(){
   const btn = $('btn-scan-start');
   setBusy(btn, true, 'Menyiapkan...');
   showLoading('Menyiapkan Kamera', 'Mengaktifkan kamera dan GPS...');
-
   try{
     scannerRunning = true;
     stream = await openCamera('scan-video');
     $('prep-camera-status').textContent = 'Aktif';
     $('prep-camera-status').className = 'text-emerald-400';
-
     if(!gps){
       showLoading('Menyiapkan GPS', 'Menunggu sinyal GPS...');
       await new Promise(resolve => {
@@ -1705,43 +1698,29 @@ async function startAttendanceScanner(){
         setTimeout(() => { clearInterval(check); resolve(); }, 10000);
       });
     }
-
-    if(!gps){
-      throw new Error('GPS tidak tersedia. Pastikan izin lokasi diizinkan dan tunggu sinyal GPS.');
-    }
-    if(gps.gps_accuracy > CFG.maxGpsAccuracyMeters){
-      throw new Error('Akurasi GPS terlalu rendah: ±' + Math.round(gps.gps_accuracy) + ' m. Maksimum ' + CFG.maxGpsAccuracyMeters + ' m.');
-    }
-
+    if(!gps) throw new Error('GPS tidak tersedia. Pastikan izin lokasi diizinkan dan tunggu sinyal GPS.');
+    if(gps.gps_accuracy > CFG.maxGpsAccuracyMeters) throw new Error('Akurasi GPS terlalu rendah: ±' + Math.round(gps.gps_accuracy) + ' m. Maksimum ' + CFG.maxGpsAccuracyMeters + ' m.');
     showLoading('Memulai Verifikasi', 'Bersiap mendeteksi wajah...');
     await sleep(400);
     hideLoading();
-
     $('scan-step-1').classList.add('hidden');
     $('scan-step-2').classList.remove('hidden');
     setScanStep(2);
-
     faceSession = await newFaceSession();
     $('challenge-box').classList.remove('hidden');
     $('challenge-text').textContent = faceSession.challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
-
     await verifyCurrentFace('scan-video', 'scan-status', 'scan');
-
     if(!scannerRunning) return;
-
     stopStream(stream); stream=null; scannerRunning=false;
-
     const dist = officeCoords ? haversineClient_(officeCoords.lat, officeCoords.lng, gps.latitude, gps.longitude) : 0;
     $('scan-summary-name').textContent = faceVerification.user.name || '—';
     $('scan-summary-type').textContent = attendanceType === 'in' ? 'IN (Masuk)' : 'OUT (Keluar)';
     $('scan-summary-distance').textContent = formatDistance_(dist);
     $('scan-summary-accuracy').textContent = '±' + Math.round(gps.gps_accuracy) + ' m';
     $('scan-summary-time').textContent = new Date().toLocaleTimeString('id-ID');
-
     $('scan-step-2').classList.add('hidden');
     $('scan-step-3').classList.remove('hidden');
     setScanStep(3);
-
   }catch(e){
     console.error('Attendance scan error:', e);
     stopStream(stream); stream=null; scannerRunning=false;
@@ -1753,57 +1732,42 @@ async function startAttendanceScanner(){
     setScanStep(1);
     $('prep-camera-status').textContent = 'Menunggu';
     $('prep-camera-status').className = 'text-slate-400';
-  } finally {
-    setBusy(btn, false);
-  }
+  } finally { setBusy(btn, false); }
 }
-
 function cancelScanToStep2(){
   if(!confirm('Rekam ulang wajah? Data verifikasi sebelumnya akan dihapus.')) return;
-  faceSession = null;
-  faceVerification = null;
+  faceSession = null; faceVerification = null;
   $('scan-step-3').classList.add('hidden');
   $('scan-step-1').classList.remove('hidden');
   setScanStep(1);
   if(!gps) getGPSForPrep();
 }
-
 function cancelScanAndHome(){
-  if(scannerRunning){
-    if(!confirm('Batalkan proses absen?')) return;
-  }
+  if(scannerRunning){ if(!confirm('Batalkan proses absen?')) return; }
   goHome();
 }
-
 async function submitAttendance(){
   if(!faceVerification || !gps || !faceSession){
     Swal.fire({icon:'warning', title:'Data belum siap', text:'Verifikasi wajah dan GPS belum siap.', background:'#1c1c1e', color:'#fff'});
     return;
   }
-
   const btn = $('btn-attendance');
   btn.disabled = true;
   showLoading('Mengirim Absen', 'Mengirim data ke server...');
-
   try{
     const result = await api('absen', {
       face_session_id: faceVerification.face_session_id,
       verification_token: faceVerification.verification_token,
       attendanceType: attendanceType,
-      latitude: gps.latitude,
-      longitude: gps.longitude,
-      gps_accuracy: gps.gps_accuracy,
+      latitude: gps.latitude, longitude: gps.longitude, gps_accuracy: gps.gps_accuracy,
       face_distance: faceVerification.distance,
       device_info: navigator.userAgent
     });
-
     showLoading('Absen Berhasil!', 'Data kehadiran tersimpan.', 'success');
     await sleep(1500);
     hideLoading();
-
     await Swal.fire({
-      icon:'success', title:'Absensi Berhasil',
-      background:'#1c1c1e', color:'#fff',
+      icon:'success', title:'Absensi Berhasil', background:'#1c1c1e', color:'#fff',
       confirmButtonColor:'#32de84', timer:3000, timerProgressBar:true,
       html:`<div style="line-height:1.8;text-align:left">
         <b>Nama:</b> ${escapeHtml(result.user.name)}<br>
@@ -1812,7 +1776,6 @@ async function submitAttendance(){
         <b>Waktu server:</b> ${escapeHtml(result.timestamp_server)}
       </div>`
     });
-
     goHome();
   }catch(e){
     showLoading('Gagal', e.message || 'Absensi gagal.', 'error');
@@ -1823,57 +1786,40 @@ async function submitAttendance(){
 }
 
 /* ============================================================
- * UPDATE DOKUMEN — SISTEMATIS V3.4.0
+ * UPDATE DOKUMEN
  * ========================================================== */
 async function startUpdateScanner(){
   const btn = $('btn-update-start-scan');
   if(!modelsLoaded){ alert('Model AI belum siap.'); return; }
   setBusy(btn, true, 'Menyiapkan...');
-
   showLoading('Menyiapkan Kamera', 'Mengaktifkan kamera...');
-
   try{
     updateScannerRunning = true;
     updateStream = await openCamera('update-video');
     hideLoading();
-
-    // Pindah ke step 2
     $('update-step-1').classList.add('hidden');
     $('update-step-2').classList.remove('hidden');
     setUpdateStep(2);
-
-    // Buat face session + liveness challenge
     faceSession = await newFaceSession();
     faceVerification = await verifyCurrentFace('update-video', 'update-status', 'update');
-
     if(!updateScannerRunning) return;
-
-    // Stop camera dulu
     stopStream(updateStream); updateStream = null;
     updateScannerRunning = false;
-
-    // Ambil data user dari server
     showLoading('Memuat Data User', 'Mengambil profil...');
     const data = await api('search_verified_user', {
       face_session_id: faceVerification.face_session_id,
       verification_token: faceVerification.verification_token
     });
     hideLoading();
-
     currentUpdateUser = data.data;
-
-    // Isi form
     $('up-ic').textContent = currentUpdateUser.ic || '-';
     $('up-name').textContent = currentUpdateUser.name || '-';
     $('up-address').textContent = currentUpdateUser.alamat || '-';
     $('up-phone').value = (currentUpdateUser.noTelpon === '-' || !currentUpdateUser.noTelpon) ? '' : currentUpdateUser.noTelpon;
     $('up-phone2').value = (currentUpdateUser.noTelpon2 === '-' || !currentUpdateUser.noTelpon2) ? '' : currentUpdateUser.noTelpon2;
-
-    // Pindah ke step 3
     $('update-step-2').classList.add('hidden');
     $('update-step-3').classList.remove('hidden');
     setUpdateStep(3);
-
   }catch(e){
     console.error('Update scan error:', e);
     stopStream(updateStream); updateStream=null;
@@ -1882,59 +1828,36 @@ async function startUpdateScanner(){
     showLoading('Gagal', e.message || 'Verifikasi gagal.', 'error');
     await sleep(2000);
     hideLoading();
-    // Kembali ke step 1
     $('update-step-2').classList.add('hidden');
     $('update-step-1').classList.remove('hidden');
     setUpdateStep(1);
-  } finally {
-    setBusy(btn, false);
-  }
+  } finally { setBusy(btn, false); }
 }
-
 function cancelUpdateToStep2(){
   if(!confirm('Rekam ulang wajah? Data verifikasi sebelumnya akan dihapus.')) return;
-  faceSession = null;
-  faceVerification = null;
-  currentUpdateUser = null;
-
-  // Reset form
-  $('up-ic').textContent = '-';
-  $('up-name').textContent = '-';
-  $('up-address').textContent = '-';
-  $('up-phone').value = '';
-  $('up-phone2').value = '';
-  $('up-file1').value = '';
-  $('up-file2').value = '';
-
+  faceSession = null; faceVerification = null; currentUpdateUser = null;
+  $('up-ic').textContent = '-'; $('up-name').textContent = '-'; $('up-address').textContent = '-';
+  $('up-phone').value = ''; $('up-phone2').value = ''; $('up-file1').value = ''; $('up-file2').value = '';
   $('update-step-3').classList.add('hidden');
   $('update-step-1').classList.remove('hidden');
   setUpdateStep(1);
 }
-
 function cancelUpdateAndHome(){
-  if(updateScannerRunning){
-    if(!confirm('Batalkan proses update? Verifikasi akan hilang.')) return;
-  }
-  faceSession = null;
-  faceVerification = null;
-  currentUpdateUser = null;
+  if(updateScannerRunning){ if(!confirm('Batalkan proses update? Verifikasi akan hilang.')) return; }
+  faceSession = null; faceVerification = null; currentUpdateUser = null;
   goHome();
 }
-
 async function saveUpdate(){
   const btn = $('btn-update-submit');
   if(!currentUpdateUser || !faceSession || !faceVerification){
     Swal.fire({icon:'warning', title:'Data verifikasi hilang', text:'Silakan verifikasi ulang.', background:'#1c1c1e', color:'#fff'});
     return;
   }
-
   setBusy(btn, true, 'Menyimpan...');
   showLoading('Menyimpan Perubahan', 'Menyiapkan data...');
-
   try{
     const f1 = await optionalFile($('up-file1').files[0]);
     const f2 = await optionalFile($('up-file2').files[0]);
-
     showLoading('Menyimpan Perubahan', 'Mengirim ke server...');
     await api('update_document_data', {
       face_session_id: faceVerification.face_session_id,
@@ -1944,14 +1867,11 @@ async function saveUpdate(){
       file1: f1, file2: f2,
       device_info: navigator.userAgent
     });
-
     showLoading('Berhasil!', 'Data telah diperbarui.', 'success');
     await sleep(1500);
     hideLoading();
-
     await Swal.fire({
-      icon:'success', title:'Data Berhasil Diperbarui',
-      background:'#1c1c1e', color:'#fff',
+      icon:'success', title:'Data Berhasil Diperbarui', background:'#1c1c1e', color:'#fff',
       confirmButtonColor:'#32de84', timer:2500, timerProgressBar:true,
       html:'<div style="line-height:1.8;text-align:left">' +
         '<b>Nama:</b> ' + escapeHtml(currentUpdateUser.name) + '<br>' +
@@ -1959,17 +1879,13 @@ async function saveUpdate(){
         '<b>No. Telefon 2:</b> ' + escapeHtml($('up-phone2').value.trim() || '-') + '<br>' +
         '<b>File tambahan:</b> ' + [f1,f2].filter(Boolean).length + ' file</div>'
     });
-
     goHome();
   } catch(e){
     showLoading('Gagal', e.message || 'Update gagal.', 'error');
     await sleep(2000);
     hideLoading();
-  } finally {
-    setBusy(btn, false);
-  }
+  } finally { setBusy(btn, false); }
 }
-
 function optionalFile(file){
   if(!file) return Promise.resolve(null);
   return new Promise((resolve, reject) => {
@@ -1982,10 +1898,11 @@ function optionalFile(file){
 }
 
 /* ============================================================
- * LIVENESS
+ * LIVENESS — V3.4.1 dengan intro, stabilization, lock
  * ========================================================== */
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
+  const videoWrap = video.closest('.video-wrap');
   let current = 0;
   let holdProgress = 0;
   let lastFrameTime = performance.now();
@@ -1993,15 +1910,83 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const GRACE_MS = 250;
   const holdRate  = 1 / Math.max(250, CFG.livenessStableMs);
   const decayRate = 1 / (Math.max(250, CFG.livenessStableMs) * 3);
+
   let bFSM = 'waiting';
-  let bClosedAt = 0, bLastAt = 0;
+  let bClosedAt = 0;
+  let bLastAt = 0;
+  let bClosedFrames = 0;
+  const BLINK_MIN_CLOSED_FRAMES = 2;
+
+  const INTRO_MS   = 1500;
+  const LOCK_MS    = 800;
+  const STABLE_REQ = 3;
+
+  let lockedUntil = 0;
+  let stableFrames = 0;
+
+  function showIntroOverlay() {
+    removeIntroOverlay();
+    if (!videoWrap) return;
+    const el = document.createElement('div');
+    el.className = 'intro-overlay';
+    el.id = 'liveness-intro-overlay';
+    el.innerHTML =
+      '<div class="intro-inner">' +
+        '<i class="fa-solid fa-hand-point-up intro-icon"></i>' +
+        '<div class="intro-title" id="liveness-intro-title">Bersiap...</div>' +
+        '<div class="intro-countdown" id="liveness-intro-countdown">3</div>' +
+      '</div>';
+    videoWrap.appendChild(el);
+  }
+  function updateIntroOverlay(title, countdown) {
+    const t = document.getElementById('liveness-intro-title');
+    const c = document.getElementById('liveness-intro-countdown');
+    if (t) t.textContent = title;
+    if (c) c.textContent = countdown;
+  }
+  function removeIntroOverlay() {
+    const el = document.getElementById('liveness-intro-overlay');
+    if (el) el.remove();
+  }
+  function showLockOverlay(poseNum, poseLabel) {
+    removeLockOverlay();
+    if (!videoWrap) return;
+    const el = document.createElement('div');
+    el.className = 'lock-prominent';
+    el.id = 'liveness-lock-overlay';
+    el.innerHTML =
+      '<div class="lock-prominent-inner">' +
+        '<div class="lock-prominent-icon"><i class="fa-solid fa-check"></i></div>' +
+        '<div class="lock-prominent-title">Pose ' + poseNum + ' Berhasil!</div>' +
+        '<div class="lock-prominent-subtitle">' + poseLabel + '</div>' +
+      '</div>';
+    videoWrap.appendChild(el);
+  }
+  function removeLockOverlay() {
+    const el = document.getElementById('liveness-lock-overlay');
+    if (el) el.remove();
+  }
 
   if(uiPrefix === 'scan'){
     $('challenge-box').classList.remove('hidden');
     $('challenge-text').textContent = challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
   }
   initLivenessStepDots(uiPrefix, challenge.length);
-  updateLivenessUI(uiPrefix, 0, null, current, challenge.length);
+  updateLivenessUI(uiPrefix, 0, 'Baca instruksi...', current, challenge.length);
+
+  // INTRO PERTAMA
+  showIntroOverlay();
+  const introStart = performance.now();
+  while(performance.now() - introStart < INTRO_MS){
+    if(!scannerRunning && videoId==='scan-video'){ removeIntroOverlay(); throw new Error('Scanner dihentikan.'); }
+    if(!updateScannerRunning && videoId==='update-video'){ removeIntroOverlay(); throw new Error('Scanner dihentikan.'); }
+    const elapsed = performance.now() - introStart;
+    const remain = Math.ceil((INTRO_MS - elapsed) / 1000);
+    updateIntroOverlay('Baca instruksi: ' + labelChallenge(challenge[0]), remain);
+    $(statusId).textContent = 'Bersiap: ' + labelChallenge(challenge[0]);
+    await sleep(80);
+  }
+  removeIntroOverlay();
 
   while(current < challenge.length){
     if(!scannerRunning && videoId==='scan-video') throw new Error('Scanner dihentikan.');
@@ -2011,10 +1996,13 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     const dt = Math.max(16, frameStart - lastFrameTime);
     lastFrameTime = frameStart;
 
+    if(frameStart < lockedUntil){ await sleep(40); continue; }
+
     const results = await detectFaceMediaPipe(video);
     if(!results){
       if(frameStart - lastGoodFrame > GRACE_MS){
         holdProgress = Math.max(0, holdProgress - decayRate * dt);
+        stableFrames = 0;
       }
       $(statusId).textContent = 'Wajah tidak terdeteksi';
       updateLivenessUI(uiPrefix, holdProgress, 'Wajah tidak terdeteksi', current, challenge.length);
@@ -2030,46 +2018,108 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     const blinkR = getBlendshape(results.faceBlendshapes, 'eyeBlinkRight');
     const isBlinking = (blinkL > CFG.blinkThreshold && blinkR > CFG.blinkThreshold);
 
-    let score = 0, advanced = false;
+    let score = 0, stepPassed = false, subStatus = '';
 
     if(step === 'BLINK'){
-      if(frameStart - bLastAt > 250){
+      if(frameStart - bLastAt > 350){
         if(bFSM === 'waiting'){
-          if(isBlinking){ bFSM = 'closed'; bClosedAt = frameStart; }
-          holdProgress = isBlinking ? 0.5 : 0;
-        } else {
+          if(isBlinking){
+            bFSM = 'closed'; bClosedAt = frameStart; bClosedFrames = 1;
+            holdProgress = 0.3;
+            subStatus = 'Mata tertutup, tahan...';
+          } else {
+            holdProgress = 0;
+            subStatus = 'Berkedip sekarang';
+          }
+        } else if(bFSM === 'closed'){
+          if(isBlinking){
+            bClosedFrames++;
+            if(bClosedFrames >= BLINK_MIN_CLOSED_FRAMES){
+              bFSM = 'open-required';
+              holdProgress = 0.7;
+              subStatus = 'Buka mata kembali';
+            } else {
+              holdProgress = 0.5;
+              subStatus = 'Tahan mata tertutup';
+            }
+          } else {
+            bFSM = 'waiting'; bClosedFrames = 0; holdProgress = 0;
+            subStatus = 'Kedip terlalu cepat, coba lagi';
+          }
+        } else if(bFSM === 'open-required'){
           if(!isBlinking){
-            bFSM = 'waiting'; bLastAt = frameStart;
-            holdProgress = 1; advanced = true;
-          } else if(frameStart - bClosedAt > 1200){
-            bFSM = 'waiting'; holdProgress = 0;
-          } else holdProgress = 0.75;
+            bFSM = 'waiting'; bLastAt = frameStart; bClosedFrames = 0;
+            holdProgress = 1; stepPassed = true;
+            subStatus = 'Kedip terdeteksi!';
+          } else if(frameStart - bClosedAt > 1500){
+            bFSM = 'waiting'; bClosedFrames = 0; holdProgress = 0;
+            subStatus = 'Tunggu kedip berikutnya';
+          } else {
+            holdProgress = 0.85;
+            subStatus = 'Buka mata lebar';
+          }
         }
-      }
+      } else { holdProgress = 1; }
       score = holdProgress;
     } else if(step === 'LEFT' || step === 'RIGHT'){
       let s = 0;
       if(step === 'LEFT')  s = pose.yaw <= 0 ? 0 : Math.min(1, pose.yaw / CFG.yawThreshold);
       else                 s = pose.yaw >= 0 ? 0 : Math.min(1, -pose.yaw / CFG.yawThreshold);
-      if(s >= 0.75) holdProgress = Math.min(1, holdProgress + holdRate * dt * (0.5 + s*0.5));
-      else if(s >= 0.50){ /* hold */ }
-      else holdProgress = Math.max(0, holdProgress - decayRate * dt);
-      if(holdProgress >= 1) advanced = true;
+
+      if(s >= 0.75){
+        stableFrames++;
+        if(stableFrames >= STABLE_REQ){
+          holdProgress = Math.min(1, holdProgress + holdRate * dt * (0.5 + s*0.5));
+          subStatus = 'Tahan posisi...';
+        } else {
+          subStatus = 'Deteksi stabil... (' + stableFrames + '/' + STABLE_REQ + ')';
+        }
+      } else if(s >= 0.50){
+        stableFrames = Math.max(0, stableFrames - 1);
+        subStatus = 'Sedikit lagi...';
+      } else {
+        stableFrames = 0;
+        holdProgress = Math.max(0, holdProgress - decayRate * dt);
+        subStatus = step === 'LEFT' ? 'Menoleh ke KIRI layar' : 'Menoleh ke KANAN layar';
+      }
+      if(holdProgress >= 1) stepPassed = true;
       score = holdProgress;
     }
 
     $(statusId).textContent = 'Liveness: ' + labelChallenge(step);
-    updateLivenessUI(uiPrefix, score, null, current, challenge.length);
+    updateLivenessUI(uiPrefix, score, subStatus, current, challenge.length);
 
-    if(advanced){
-      current++; holdProgress = 0; bFSM = 'waiting';
-      showLivenessLockBadge(uiPrefix);
-      await sleep(350);
-      hideLivenessLockBadge(uiPrefix);
+    if(stepPassed){
+      const currentLabel = labelChallenge(step);
+      current++;
+      holdProgress = 0; stableFrames = 0; bFSM = 'waiting'; bClosedFrames = 0;
+      showLockOverlay(current, currentLabel);
+      lockedUntil = performance.now() + LOCK_MS;
+      await sleep(LOCK_MS);
+      removeLockOverlay();
       updateLivenessUI(uiPrefix, 0, null, current, challenge.length);
+      if(current < challenge.length){
+        showIntroOverlay();
+        const nextIntroStart = performance.now();
+        while(performance.now() - nextIntroStart < INTRO_MS){
+          if(!scannerRunning && videoId==='scan-video'){ removeIntroOverlay(); throw new Error('Scanner dihentikan.'); }
+          if(!updateScannerRunning && videoId==='update-video'){ removeIntroOverlay(); throw new Error('Scanner dihentikan.'); }
+          const el = performance.now() - nextIntroStart;
+          const remain = Math.ceil((INTRO_MS - el) / 1000);
+          updateIntroOverlay('Baca instruksi: ' + labelChallenge(challenge[current]), remain);
+          $(statusId).textContent = 'Bersiap: ' + labelChallenge(challenge[current]);
+          await sleep(80);
+        }
+        removeIntroOverlay();
+        lastFrameTime = performance.now();
+        lastGoodFrame = performance.now();
+      }
     }
     await sleep(25);
   }
+
+  removeIntroOverlay();
+  removeLockOverlay();
   updateLivenessUI(uiPrefix, 1, 'Verifikasi selesai', challenge.length, challenge.length);
   return { pass:true, steps_completed:challenge };
 }
@@ -2122,7 +2172,6 @@ function hideLivenessLockBadge(p){ const b=$(p+'-lock-badge'); if(b) b.classList
  * FACE SESSION / VERIFY
  * ========================================================== */
 async function newFaceSession(){ faceSession = await api('face_session'); return faceSession; }
-
 async function captureProbe(videoId){
   const video = $(videoId);
   const results = await detectFaceMediaPipe(video);
@@ -2137,7 +2186,6 @@ async function captureProbe(videoId){
   const descriptor = await getFaceEmbedding(aligned);
   return { descriptor, quality, liveScore };
 }
-
 async function verifyCurrentFace(videoId, statusId, uiPrefix){
   if(!faceSession) await newFaceSession();
   const live = await runLiveness(videoId, statusId, faceSession.challenge, uiPrefix);
@@ -2200,7 +2248,6 @@ async function requestPasswordRecovery(){
     }catch(e){ $('forgot-result').textContent = e.message||'Gagal membuat request.'; }
   }, 'Membuat request...');
 }
-
 async function changeUserPassword(){
   const btn = $('btn-user-change-password');
   const current = $('user-current-password').value, next = $('user-new-password').value;
@@ -2210,7 +2257,6 @@ async function changeUserPassword(){
     catch(e){ alert(e.message||'Gagal menukar password.'); }
   }, 'Menyimpan...');
 }
-
 async function loginAdmin(event){
   event.preventDefault();
   const btn = $('btn-login');
@@ -2233,14 +2279,12 @@ async function loginAdmin(event){
     }catch(e){ alert(e.message||'Login gagal.'); }
   }, 'Masuk...');
 }
-
 async function logoutAdmin(){
   try{ if(authToken) await api('auth_logout'); }catch(e){ console.warn(e); }
   clearLocalSession(); stopAllCameras();
   registrationRunning=false; poseLoopRunning=false;
   goHome();
 }
-
 async function changeMyPassword(){
   if(!authToken){ alert('Sesi tidak aktif.'); return; }
   const btn = document.querySelector('button[onclick="changeMyPassword()"]');
@@ -2251,7 +2295,6 @@ async function changeMyPassword(){
     catch(e){ alert(e.message||'Gagal menukar password.'); }
   }, 'Menyimpan...');
 }
-
 async function resetUserPassword(){
   if(!authToken){ alert('Sesi admin tidak aktif.'); return; }
   const btn = document.querySelector('button[onclick="resetUserPassword()"]');
@@ -2263,7 +2306,6 @@ async function resetUserPassword(){
     catch(e){ alert(e.message||'Gagal reset password.'); }
   }, 'Mereset password...');
 }
-
 async function loadRecoveryRequests(){
   if(!authToken || String(currentUser?.role).toLowerCase()!=='admin') return;
   const box = $('recovery-list'); box.textContent='Memuat...';
