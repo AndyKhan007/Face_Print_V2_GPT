@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V3.1.1 — MediaPipe + ONNX</title>
+<title>FacePrint V3.2.0 — MediaPipe + ONNX</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,10 +63,150 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 .step-box.done{color:#32de84}
 .step-connector{flex:1;height:2px;background:#27272a;margin-top:-14px;transition:.2s}
 .step-connector.done{background:#32de84}
+
+/* ============================================================
+   SPLASH SCREEN
+   ============================================================ */
+#splash-screen {
+  transition: opacity 0.6s ease-out, visibility 0.6s ease-out;
+}
+#splash-screen.fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.splash-icon {
+  animation: splashPulse 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(50, 222, 132, 0.6));
+}
+@keyframes splashPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: drop-shadow(0 0 20px rgba(50, 222, 132, 0.6));
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.85;
+    filter: drop-shadow(0 0 35px rgba(50, 222, 132, 0.9));
+  }
+}
+.splash-ring {
+  animation: splashRingExpand 2.4s ease-out infinite;
+}
+.splash-ring-2 { animation-delay: 0.8s; }
+.splash-ring-3 { animation-delay: 1.6s; }
+@keyframes splashRingExpand {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+    border-color: rgba(50, 222, 132, 0.6);
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+    border-color: rgba(50, 222, 132, 0);
+  }
+}
+.splash-check {
+  transition: all 0.35s ease;
+}
+.splash-check.done {
+  background: #32de84;
+  border-color: #32de84;
+  color: #000;
+  animation: checkPop 0.4s ease;
+}
+.splash-check.done::after {
+  content: '\f00c';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  font-size: 10px;
+}
+.splash-check.loading {
+  border-color: #facc15;
+  border-right-color: transparent;
+  animation: splashSpin 0.8s linear infinite;
+}
+.splash-check.error {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+}
+.splash-check.error::after {
+  content: '\f00d';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  font-size: 10px;
+}
+@keyframes splashSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes checkPop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
 </style>
 </head>
 
 <body class="min-h-screen flex flex-col">
+
+<!-- ==================== LOADING SPLASH ==================== -->
+<div id="splash-screen" class="fixed inset-0 z-[10000] flex items-center justify-center bg-zinc-950">
+  <div class="text-center space-y-8 max-w-md px-6">
+    <div class="relative mx-auto w-32 h-32 flex items-center justify-center">
+      <div class="absolute inset-0 rounded-full border-2 border-emerald-400/30 splash-ring"></div>
+      <div class="absolute inset-0 rounded-full border-2 border-emerald-400/20 splash-ring splash-ring-2"></div>
+      <div class="absolute inset-0 rounded-full border-2 border-emerald-400/10 splash-ring splash-ring-3"></div>
+      <i class="fa-solid fa-fingerprint text-emerald-400 splash-icon" style="font-size:5rem"></i>
+    </div>
+
+    <div>
+      <h1 class="text-3xl font-bold text-emerald-400 tracking-wider">FacePrint V3</h1>
+      <p class="text-sm text-slate-400 mt-2">Memuat model AI...</p>
+    </div>
+
+    <div class="space-y-2">
+      <div class="relative h-2 rounded-full bg-zinc-800 overflow-hidden">
+        <div id="splash-progress-bar" class="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500" style="width:0%"></div>
+      </div>
+      <div class="flex justify-between text-xs text-slate-500">
+        <span id="splash-status-text">Inisialisasi...</span>
+        <span id="splash-percent" class="font-mono font-bold text-emerald-400">0%</span>
+      </div>
+    </div>
+
+    <div class="space-y-2 text-left text-sm">
+      <div class="flex items-center gap-3" data-model="mediapipe">
+        <span class="splash-check w-5 h-5 rounded-full border-2 border-zinc-700 flex items-center justify-center text-[10px]"></span>
+        <span class="text-slate-400">MediaPipe Face Landmarker</span>
+      </div>
+      <div class="flex items-center gap-3" data-model="mobilefacenet">
+        <span class="splash-check w-5 h-5 rounded-full border-2 border-zinc-700 flex items-center justify-center text-[10px]"></span>
+        <span class="text-slate-400">MobileFaceNet (ONNX)</span>
+      </div>
+      <div class="flex items-center gap-3" data-model="minifasnet">
+        <span class="splash-check w-5 h-5 rounded-full border-2 border-zinc-700 flex items-center justify-center text-[10px]"></span>
+        <span class="text-slate-400">MiniFASNetV2 (ONNX)</span>
+      </div>
+    </div>
+
+    <div id="splash-error" class="hidden bg-red-500/10 border border-red-500/40 rounded-xl p-4 text-left">
+      <div class="flex items-start gap-3">
+        <i class="fa-solid fa-triangle-exclamation text-red-400 text-lg mt-0.5"></i>
+        <div class="flex-1">
+          <div class="font-bold text-red-400 text-sm">Gagal Memuat</div>
+          <div id="splash-error-msg" class="text-xs text-slate-300 mt-1"></div>
+          <button onclick="location.reload()" class="mt-3 px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-bold hover:bg-red-600">
+            <i class="fa-solid fa-rotate-right mr-1"></i>Coba Lagi
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <header class="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur p-4 flex justify-between items-center">
   <div class="font-bold tracking-wide text-emerald-400"><i class="fa-solid fa-fingerprint mr-2"></i>FacePrint V3</div>
   <div class="flex gap-3 items-center">
@@ -85,7 +225,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V3.1.1 — MediaPipe + ONNX</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V3.2.0 — MediaPipe + ONNX</p>
   </div>
   <div class="space-y-3">
     <button id="btn-start-in" class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
@@ -520,6 +660,46 @@ function setSessionBadge(){
 }
 
 /* ============================================================
+ * SPLASH SCREEN HELPERS
+ * ========================================================== */
+function splashSetProgress(percent, statusText) {
+  const bar = document.getElementById('splash-progress-bar');
+  const label = document.getElementById('splash-percent');
+  const status = document.getElementById('splash-status-text');
+  if (bar) bar.style.width = Math.max(0, Math.min(100, percent)) + '%';
+  if (label) label.textContent = Math.round(percent) + '%';
+  if (status && statusText) status.textContent = statusText;
+}
+
+function splashSetModelState(modelKey, state, labelText) {
+  const wrap = document.querySelector(`[data-model="${modelKey}"]`);
+  if (!wrap) return;
+  const el = wrap.querySelector('.splash-check');
+  const label = wrap.querySelector('span:not(.splash-check)');
+  if (!el) return;
+  el.classList.remove('loading', 'done', 'error');
+  if (state === 'loading') el.classList.add('loading');
+  else if (state === 'done') el.classList.add('done');
+  else if (state === 'error') el.classList.add('error');
+  if (label && labelText) label.textContent = labelText;
+}
+
+function splashHide() {
+  const el = document.getElementById('splash-screen');
+  if (!el) return;
+  el.classList.add('fade-out');
+  setTimeout(() => el.remove(), 700);
+}
+
+function splashShowError(message) {
+  const box = document.getElementById('splash-error');
+  const msg = document.getElementById('splash-error-msg');
+  if (box) box.classList.remove('hidden');
+  if (msg) msg.textContent = message;
+  splashSetProgress(100, 'Gagal');
+}
+
+/* ============================================================
  * API
  * ========================================================== */
 async function api(action,payload={}){
@@ -544,19 +724,24 @@ async function api(action,payload={}){
 }
 
 /* ============================================================
- * LOAD MODELS — Single Input
+ * LOAD MODELS — dengan splash progress
  * ========================================================== */
 async function loadModels(){
   try{
+    // ============ STEP 1: MediaPipe ============
+    splashSetProgress(5, 'Menunggu MediaPipe...');
+    splashSetModelState('mediapipe', 'loading');
+
     if(!window.FaceLandmarker){
       await new Promise(resolve => {
         if(window.FaceLandmarker) resolve();
         else window.addEventListener('mediapipe-ready', resolve, {once:true});
-        setTimeout(resolve, 5000);
+        setTimeout(resolve, 8000);
       });
     }
     if(!window.FaceLandmarker) throw new Error('MediaPipe gagal dimuat.');
 
+    splashSetProgress(15, 'Memuat MediaPipe Face Landmarker...');
     const vision = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm"
     );
@@ -569,13 +754,18 @@ async function loadModels(){
       runningMode: "VIDEO",
       numFaces: 1
     });
+    splashSetProgress(35, 'MediaPipe siap');
+    splashSetModelState('mediapipe', 'done', 'MediaPipe Face Landmarker');
     console.log('✓ MediaPipe Face Landmarker siap');
 
     ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/';
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.simd = true;
 
-    // ============ MobileFaceNet (single-input) ============
+    // ============ STEP 2: MobileFaceNet ============
+    splashSetProgress(40, 'Memuat MobileFaceNet...');
+    splashSetModelState('mobilefacenet', 'loading');
+
     try {
       faceRecognitionSession = await ort.InferenceSession.create(`${MODEL_BASE}/mobile_facenet.onnx`);
       faceInputName  = faceRecognitionSession.inputNames[0];
@@ -596,26 +786,43 @@ async function loadModels(){
           faceRecognitionSession.inputNames.join(', '));
       }
 
+      splashSetProgress(70, 'MobileFaceNet siap');
+      splashSetModelState('mobilefacenet', 'done', 'MobileFaceNet (ONNX)');
       console.log('✓ MobileFaceNet siap. Input:', faceInputName,
         'Shape:', faceInputShape, '| Output:', faceOutputName, 'Dim:', faceOutputDim);
     } catch(e) {
+      splashSetModelState('mobilefacenet', 'error', 'MobileFaceNet gagal');
       throw new Error('MobileFaceNet ONNX gagal dimuat: ' + e.message);
     }
 
-    // ============ MiniFASNetV2 ============
+    // ============ STEP 3: MiniFASNetV2 ============
+    splashSetProgress(75, 'Memuat MiniFASNetV2...');
+    splashSetModelState('minifasnet', 'loading');
+
     try {
       livenessSession = await ort.InferenceSession.create(`${MODEL_BASE}/MiniFASNetV2.onnx`);
       livenessInputName = livenessSession.inputNames[0];
       livenessOutputName = livenessSession.outputNames[0];
       const meta2 = livenessSession.inputMetadata?.[livenessInputName];
       if(meta2 && meta2.dimensions) livenessInputShape = meta2.dimensions.map(d => d === -1 ? 1 : d);
+      splashSetProgress(95, 'MiniFASNetV2 siap');
+      splashSetModelState('minifasnet', 'done', 'MiniFASNetV2 (ONNX)');
       console.log('✓ MiniFASNetV2 ONNX siap. Input:', livenessInputName, 'Shape:', livenessInputShape);
-    } catch(e) { console.warn('MiniFASNetV2 gagal dimuat:', e.message); }
+    } catch(e) {
+      console.warn('MiniFASNetV2 gagal dimuat:', e.message);
+      splashSetModelState('minifasnet', 'error', 'MiniFASNetV2 dilewati');
+    }
 
+    // ============ DONE ============
+    splashSetProgress(100, 'Semua model siap!');
     modelsLoaded = true;
+
+    await sleep(600);
+    splashHide();
+
   } catch(e){
     console.error('Gagal memuat model:', e);
-    alert('Model AI gagal dimuat: ' + e.message);
+    splashShowError(e.message || String(e));
   }
 }
 
@@ -646,7 +853,7 @@ async function loadServerConfig(){
        Number.isFinite(Number(c.office_lat)) && Number.isFinite(Number(c.office_lng))){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
-    const v = c.app_version || '3.1.1';
+    const v = c.app_version || '3.2.0';
     const subtitle = document.querySelector('#home h1 + p');
     if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — MediaPipe + ONNX';
     console.log('[CFG] Server config loaded');
@@ -780,7 +987,6 @@ function canvasToTensor(canvas, inputShape, layout){
   for(let y=0; y<H; y++){
     for(let x=0; x<W; x++){
       const i = (y*W + x) * 4;
-      // InsightFace-style normalization: (x - 127.5) / 128
       const r = (data[i]   - 127.5) / 128.0;
       const g = (data[i+1] - 127.5) / 128.0;
       const b = (data[i+2] - 127.5) / 128.0;
@@ -808,16 +1014,12 @@ function getLayout(shape){
  * ========================================================== */
 async function getFaceEmbedding(canvas){
   if(!faceRecognitionSession) throw new Error('Sesi pengenalan wajah belum siap.');
-
   const tensor = canvasToTensor(canvas, faceInputShape, getLayout(faceInputShape));
   const feeds = {};
   feeds[faceInputName] = tensor;
-
   const out = await faceRecognitionSession.run(feeds);
   const result = out[faceOutputName] || out[Object.keys(out)[0]];
   let data = Array.from(result.data);
-
-  // L2 normalize
   const norm = Math.sqrt(data.reduce((s,v) => s + v*v, 0)) || 1;
   return data.map(v => v / norm);
 }
@@ -873,7 +1075,7 @@ function computeQualityFromLandmarks(landmarks, vw, vh){
 }
 
 /* ============================================================
- * POSES — 8 langkah
+ * POSES
  * ========================================================== */
 const POSES = [
   'Langkah 1/8: Hadap depan',
@@ -1123,7 +1325,7 @@ function computePoseScore(poseIndex, landmarks, blendshapes, vw, vh, quality){
 }
 
 /* ============================================================
- * BLINK STEP (POSE 8)
+ * BLINK STEP
  * ========================================================== */
 async function handleBlinkStep(landmarks, blendshapes, quality, video){
   const blinkL = getBlendshape(blendshapes, 'eyeBlinkLeft');
@@ -1828,11 +2030,22 @@ function escapeHtml(s){
 window.addEventListener('beforeunload', () => stopAllCameras());
 
 window.addEventListener('load', async () => {
-  await loadServerConfig();
-  await restoreSession();
-  await loadModels();
-  setSessionBadge();
-  setStepIndicator(1);
+  try {
+    await loadServerConfig();
+    await restoreSession();
+    await loadModels();
+
+    if (!modelsLoaded) {
+      // Splash sudah menampilkan error, tidak perlu lanjut
+      return;
+    }
+
+    setSessionBadge();
+    setStepIndicator(1);
+  } catch(e) {
+    console.error('Inisialisasi gagal:', e);
+    splashShowError(e.message || String(e));
+  }
 });
 </script>
 </body>
