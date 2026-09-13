@@ -3,14 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V2.2.1 — Bio Attendance System</title>
+<title>FacePrint V3.0.0 — MediaPipe + ONNX</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
+<script type="module">
+  import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/vision_bundle.mjs";
+  window.FaceLandmarker = FaceLandmarker;
+  window.FilesetResolver = FilesetResolver;
+  window.dispatchEvent(new Event('mediapipe-ready'));
+</script>
 <style>
 :root{--bg:#101113;--card:#1c1c1e;--accent:#32de84;--muted:#94a3b8}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f8fafc;font-family:Roboto,sans-serif}
@@ -47,7 +53,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 .pose-step-dot.done{background:#32de84;box-shadow:0 0 8px rgba(50,222,132,.55)}
 .pose-step-dot.active{background:#facc15;box-shadow:0 0 8px rgba(250,204,21,.6);animation:dotPulse 1s ease-in-out infinite}
 @keyframes dotPulse{0%,100%{opacity:1}50%{opacity:.45}}
-.blink-counter{display:inline-flex;align-items:center;gap:.4rem;padding:.25rem .7rem;border-radius:999px;background:rgba(50,222,132,.15);border:1px solid rgba(50,222,132,.4);font-weight:700;font-size:.75rem;color:#32de84;}
 .eye-indicator{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem .9rem;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);font-size:2rem;transition:.15s;}
 .eye-indicator.closed{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.5);transform:scale(1.1);box-shadow:0 0 20px rgba(239,68,68,.6);}
 </style>
@@ -55,7 +60,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 
 <body class="min-h-screen flex flex-col">
 <header class="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur p-4 flex justify-between items-center">
-  <div class="font-bold tracking-wide text-emerald-400"><i class="fa-solid fa-fingerprint mr-2"></i>FacePrint V2</div>
+  <div class="font-bold tracking-wide text-emerald-400"><i class="fa-solid fa-fingerprint mr-2"></i>FacePrint V3</div>
   <div class="flex gap-3 items-center">
     <span id="session-badge" class="badge text-slate-400">Public</span>
     <span id="clock" class="font-mono text-xs text-slate-400"></span>
@@ -64,15 +69,16 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 
 <div id="global-loading"><div class="card p-6 text-center"><div class="spinner" style="width:2rem;height:2rem;border-width:3px;margin:0 auto 12px"></div><div id="global-loading-text" class="font-semibold">Memproses...</div></div></div>
 <main class="flex-1 p-4 flex items-center justify-center">
+
+<!-- ==================== HOME ==================== -->
 <section id="home" class="card w-full max-w-md p-7 space-y-5">
   <div class="text-center">
     <div class="mx-auto mb-4 w-20 h-20 rounded-full border border-emerald-400/50 bg-emerald-400/10 flex items-center justify-center text-emerald-400 text-3xl">
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V2.2.1 — server-side verification</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V3.0.0 — MediaPipe + ONNX</p>
   </div>
-
   <div class="space-y-3">
     <button id="btn-start-in" class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
       <i class="fa-solid fa-right-to-bracket mr-2"></i>FacePrint In
@@ -89,15 +95,14 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </section>
 
+<!-- ==================== SCANNER ==================== -->
 <section id="scanner" class="hidden card w-full max-w-2xl p-5 space-y-4">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
     <h2 id="scanner-title" class="font-bold text-lg">FacePrint In</h2>
     <button onclick="goHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
   </div>
-
   <div class="video-wrap">
     <video id="scan-video" autoplay playsinline muted></video>
-    <canvas id="scan-canvas"></canvas>
     <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
       <div class="w-64 h-64 rounded-full border-2 border-dashed border-emerald-400/80"></div>
     </div>
@@ -108,12 +113,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-check mr-1"></i><span id="scan-lock-text">Terkunci!</span>
     </div>
   </div>
-
   <div id="challenge-box" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-4">
     <div class="text-xs text-slate-400">Liveness challenge</div>
     <div id="challenge-text" class="font-bold text-emerald-400 mt-1"></div>
   </div>
-
   <div class="space-y-2">
     <div class="flex justify-between items-center text-xs">
       <span class="text-slate-400">Progress pose</span>
@@ -129,12 +132,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <span id="scan-hint-text">Bersiap...</span>
     </div>
   </div>
-
   <div class="flex justify-between items-center gap-1">
     <div class="pose-step-dot" data-scan-step="0"></div>
     <div class="pose-step-dot" data-scan-step="1"></div>
   </div>
-
   <div class="grid grid-cols-2 gap-3 text-sm">
     <div class="bg-zinc-900 rounded-xl p-3">
       <span class="text-slate-400 block">Akurasi GPS</span>
@@ -146,12 +147,12 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <b id="face-status">Belum diverifikasi</b>
     </div>
   </div>
-
   <button id="btn-attendance" class="btn w-full bg-emerald-400 text-black disabled:opacity-40" onclick="submitAttendance()" disabled>
     Proses Absen
   </button>
 </section>
 
+<!-- ==================== ADMIN LOGIN ==================== -->
 <section id="admin-login" class="hidden card w-full max-w-md p-7 space-y-5">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
     <h2 class="font-bold">Login FacePrint</h2>
@@ -165,13 +166,14 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   <button type="button" class="w-full text-sm text-emerald-400 hover:underline" onclick="showForgotPassword()">Lupa password?</button>
   <div id="forgot-box" class="hidden border-t border-zinc-800 pt-4 space-y-3">
     <div class="text-sm font-semibold">Permintaan Reset Password</div>
-    <p class="text-xs text-slate-400">Masukkan username. Sistem akan membuat Request ID tanpa membocorkan apakah akun tersebut ada. Berikan Request ID kepada administrator.</p>
+    <p class="text-xs text-slate-400">Masukkan username. Sistem akan membuat Request ID tanpa membocorkan apakah akun tersebut ada.</p>
     <input id="forgot-user" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Username">
     <button id="btn-forgot" type="button" class="btn w-full bg-zinc-800 border border-zinc-700" onclick="requestPasswordRecovery()">Buat Request Reset</button>
     <div id="forgot-result" class="text-xs text-slate-300"></div>
   </div>
 </section>
 
+<!-- ==================== USER DASHBOARD ==================== -->
 <section id="user-dashboard" class="hidden card w-full max-w-md p-6 space-y-4">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3"><h2 class="font-bold">Akun Saya</h2><button onclick="logoutAdmin()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button></div>
   <div id="user-session-info" class="text-sm text-slate-300"></div>
@@ -182,12 +184,12 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </section>
 
+<!-- ==================== REGISTRATION ==================== -->
 <section id="registration" class="hidden card w-full max-w-2xl p-5 space-y-5">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
-    <h2 class="font-bold">Pendaftaran FacePrint V2</h2>
+    <h2 class="font-bold">Pendaftaran FacePrint V3</h2>
     <button onclick="goHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
   </div>
-
   <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
     <div class="flex justify-between items-center">
       <div>
@@ -219,7 +221,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       </div>
     </div>
   </div>
-
   <div class="grid md:grid-cols-2 gap-3">
     <input id="reg-username" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Username">
     <input id="reg-password" type="password" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Password awal">
@@ -231,10 +232,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <option value="user">User</option><option value="admin">Admin</option>
     </select>
   </div>
-
   <div class="video-wrap">
     <video id="reg-video" autoplay playsinline muted></video>
-    <canvas id="reg-canvas"></canvas>
     <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs text-center">
       <span id="pose-text">Langkah 1/6: Hadap depan</span>
     </div>
@@ -242,12 +241,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-check mr-1"></i><span id="pose-lock-text">Terkunci!</span>
     </div>
     <div id="reg-eye-indicator" class="hidden absolute bottom-3 right-3">
-      <div class="eye-indicator" id="eye-indicator-icon">
-        <i class="fa-solid fa-eye"></i>
-      </div>
+      <div class="eye-indicator" id="eye-indicator-icon"><i class="fa-solid fa-eye"></i></div>
     </div>
   </div>
-
   <div class="space-y-2">
     <div class="flex justify-between items-center text-xs">
       <span class="text-slate-400">Kualitas pose saat ini</span>
@@ -262,11 +258,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <span id="pose-hint-arrow" class="pose-arrow"></span>
       <span id="pose-hint-text">Hadap depan, tatap kamera</span>
     </div>
-    <div id="blink-counter-wrap" class="hidden text-center">
-      <span class="blink-counter"><i class="fa-solid fa-eye"></i> Kedip: <b id="blink-counter">0 / 1</b></span>
-    </div>
   </div>
-
   <div class="flex justify-between items-center gap-1">
     <div class="pose-step-dot" data-step="0"></div>
     <div class="pose-step-dot" data-step="1"></div>
@@ -275,7 +267,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <div class="pose-step-dot" data-step="4"></div>
     <div class="pose-step-dot" data-step="5"></div>
   </div>
-
   <div>
     <div class="flex justify-between text-xs text-slate-400 mb-1">
       <span id="pose-progress">0 / 6</span><span id="pose-percent">0%</span>
@@ -284,11 +275,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <div id="pose-bar" class="h-full bg-emerald-400" style="width:0%"></div>
     </div>
   </div>
-
-  <div class="bg-zinc-900 rounded-xl p-3 text-xs text-slate-400">
-    <b class="text-emerald-400">Tip:</b> Untuk langkah terakhir, <b>berkedip 1 kali secara natural</b>. Sistem mendeteksi kedipan cepat (0.1–0.4 detik) dengan baseline mata Anda, lalu otomatis kembali ke halaman utama.
-  </div>
-
   <div class="grid grid-cols-2 gap-3">
     <button id="btn-pose-skip" type="button" class="btn bg-zinc-800 border border-zinc-700 text-sm" onclick="skipCurrentPose()">
       <i class="fa-solid fa-forward mr-2 text-slate-400"></i>Lewati Pose Ini
@@ -299,21 +285,19 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </section>
 
+<!-- ==================== UPDATE ==================== -->
 <section id="update" class="hidden card w-full max-w-2xl p-5 space-y-5">
   <div class="flex justify-between items-center border-b border-zinc-800 pb-3">
     <h2 class="font-bold">Update Dokumen & Data</h2>
     <button onclick="goHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
   </div>
-
   <div id="update-start" class="text-center space-y-4">
     <p class="text-slate-300">Lakukan verifikasi wajah sebelum mengubah data.</p>
     <button class="btn bg-emerald-400 text-black" onclick="startUpdateScan()">Mulai Verifikasi</button>
   </div>
-
   <div id="update-scanner" class="hidden space-y-4">
     <div class="video-wrap">
       <video id="update-video" autoplay playsinline muted></video>
-      <canvas id="update-canvas"></canvas>
       <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div class="w-64 h-64 rounded-full border-2 border-dashed border-emerald-400"></div>
       </div>
@@ -324,7 +308,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
         <i class="fa-solid fa-check mr-1"></i><span id="update-lock-text">Terkunci!</span>
       </div>
     </div>
-
     <div class="space-y-2">
       <div class="flex justify-between items-center text-xs">
         <span class="text-slate-400">Progress pose</span>
@@ -340,13 +323,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
         <span id="update-hint-text">Bersiap...</span>
       </div>
     </div>
-
     <div class="flex justify-between items-center gap-1">
       <div class="pose-step-dot" data-update-step="0"></div>
       <div class="pose-step-dot" data-update-step="1"></div>
     </div>
   </div>
-
   <div id="update-form" class="hidden space-y-4">
     <div class="grid md:grid-cols-2 gap-3 bg-zinc-900 rounded-xl p-4">
       <div><span class="text-xs text-slate-400">IC</span><div id="up-ic" class="font-mono"></div></div>
@@ -360,41 +341,42 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <button class="btn w-full bg-emerald-400 text-black" onclick="saveUpdate()">Simpan Perubahan</button>
   </div>
 </section>
-</main>
 
-<footer class="text-center text-xs text-slate-600 border-t border-zinc-900 p-4">FacePrint V2 • Server-side biometric decision</footer>
+</main>
+<footer class="text-center text-xs text-slate-600 border-t border-zinc-900 p-4">FacePrint V3 • MediaPipe + ONNX Runtime</footer>
 
 <script>
 /* ============================================================
- * CONFIG — fallback (akan ditimpa oleh server via public_config)
+ * KONFIGURASI
  * ========================================================== */
-const API_URL = "https://script.google.com/macros/s/AKfycbx3jZbbbgEQJ3qQ3FZhRn9EMB8qcIip225AWXWM--uB-uwbTtY5xRylskVCkSUdvHf3/exec";
-const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
+const API_URL = "https://script.google.com/macros/s/AKfycbw1V-FObHQZczt6f7f9AQN92LyMnp5qL0bgm46zP-0RX8JEHf5GT1z0OD70R41FYZaV/exec";
+const MODEL_BASE = "models";
 
 const CFG = {
-  useFastDetector: true,
-  detectorInputSize: 320,
-  detectorScoreThreshold: 0.4,
-  minDetectorConfidence: 0.45,
-  minFacePixels: 85,
-  minQuality: 0.70,
+  // Detector
+  minFacePixels: 60,
+  minQuality: 0.55,
+  // Pose (derajat)
   yawThreshold: 15,
   pitchThreshold: 12,
   frontYawDead: 8,
   frontYawMax: 25,
   frontPitchDead: 6,
   frontPitchMax: 20,
-  blinkClosedEar: 0.22,
-  blinkOpenEar: 0.24,
+  // Blink (MediaPipe blendshape threshold)
+  blinkThreshold: 0.5,
+  blinkTarget: 1,
+  // Auto-lock
   poseLockThreshold: 0.80,
   poseStableMs: 350,
   livenessStableMs: 400,
+  // GPS
   maxRadiusMeters: 500,
   maxGpsAccuracyMeters: 100,
   cooldownSeconds: 30,
+  // Matching (info dari server)
   faceMatchThreshold: 0.60,
-  minMatchMargin: 0.05,
-  blinkTarget: 1
+  minMatchMargin: 0.05
 };
 
 let BLINK_TARGET = CFG.blinkTarget;
@@ -404,40 +386,40 @@ let ENROLL_MAX = 20;
 /* ============================================================
  * STATE
  * ========================================================== */
-
-let authToken = localStorage.getItem('faceprint_v2_token') || '';
+let authToken = localStorage.getItem('faceprint_v3_token') || '';
 let currentUser = null;
 let faceSession = null;
 let faceVerification = null;
 let attendanceType = 'in';
 let gps = null;
 let officeCoords = null;
-let stream = null;
-let regStream = null;
-let updateStream = null;
+let stream = null, regStream = null, updateStream = null;
 let modelsLoaded = false;
-let scannerRunning = false;
-let updateScannerRunning = false;
-let registrationRunning = false;
+let scannerRunning = false, updateScannerRunning = false, registrationRunning = false;
 let currentPose = 0;
 let enrolledSamples = [];
 let currentUpdateUser = null;
-
 let poseLoopRunning = false;
-let poseStableStart = 0;
-let poseScoreSmoothed = 0;
-let poseLocked = false;
-
+let poseStableStart = 0, poseScoreSmoothed = 0, poseLocked = false;
 let blinkProgress = 0;
-let blinkBaselineEar = 0.30;
 let blinkFSMState = 'waiting';
 let blinkClosedTime = 0;
 let blinkLastDetected = 0;
 
-/* ============================================================
- * BASIC UI
- * ========================================================== */
+// Model objects
+let faceLandmarker = null;
+let faceRecognitionSession = null;
+let livenessSession = null;
+let faceInputName = 'input';
+let faceOutputName = 'output';
+let livenessInputName = 'input';
+let livenessOutputName = 'output';
+let faceInputShape = [1, 3, 112, 112];
+let livenessInputShape = [1, 3, 80, 80];
 
+/* ============================================================
+ * UI
+ * ========================================================== */
 function $(id){return document.getElementById(id)}
 function show(id){
   ['home','scanner','admin-login','user-dashboard','registration','update'].forEach(x=>$(x).classList.add('hidden'));
@@ -471,18 +453,15 @@ function setSessionBadge(){
 /* ============================================================
  * API
  * ========================================================== */
-
 async function api(action,payload={}){
   if(!API_URL || API_URL.startsWith('GANTI_')) throw new Error('API_URL belum dikonfigurasi.');
   const body={action,...payload};
   if(authToken) body.auth_token=authToken;
-
   const response=await fetch(API_URL,{
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify(body)
   });
-
   let result;
   try { result=await response.json(); }
   catch(e){ throw new Error('Respons server tidak valid.'); }
@@ -495,47 +474,92 @@ async function api(action,payload={}){
   return result;
 }
 
+/* ============================================================
+ * LOAD MODELS — MediaPipe + ONNX
+ * ========================================================== */
 async function loadModels(){
   try{
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-    ]);
-    modelsLoaded=true;
-  }catch(e){
-    console.error(e);
-    alert('Model AI gagal dimuat.');
-  }
-}
+    // Tunggu MediaPipe siap
+    if(!window.FaceLandmarker){
+      await new Promise(resolve => {
+        if(window.FaceLandmarker) resolve();
+        else window.addEventListener('mediapipe-ready', resolve, {once:true});
+        setTimeout(resolve, 5000);
+      });
+    }
 
-function getDetectorOptions(){
-  if (CFG.useFastDetector) {
-    return new faceapi.TinyFaceDetectorOptions({
-      inputSize: CFG.detectorInputSize,
-      scoreThreshold: CFG.detectorScoreThreshold
+    if(!window.FaceLandmarker) throw new Error('MediaPipe gagal dimuat.');
+
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm"
+    );
+    faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+        delegate: "GPU"
+      },
+      outputFaceBlendshapes: true,
+      runningMode: "VIDEO",
+      numFaces: 1
     });
+    console.log('✓ MediaPipe Face Landmarker siap');
+
+    // Konfigurasi ONNX Runtime
+    ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/';
+
+    // Load MobileFaceNet
+    try {
+      faceRecognitionSession = await ort.InferenceSession.create(`${MODEL_BASE}/mobile_facenet.onnx`);
+      faceInputName = faceRecognitionSession.inputNames[0];
+      faceOutputName = faceRecognitionSession.outputNames[0];
+      const meta = faceRecognitionSession.inputMetadata?.[faceInputName];
+      if(meta && meta.dimensions) faceInputShape = meta.dimensions.map(d => d === -1 ? 1 : d);
+      console.log('✓ MobileFaceNet ONNX siap. Input:', faceInputName, 'Shape:', faceInputShape);
+    } catch(e) {
+      console.warn('MobileFaceNet gagal dimuat:', e.message);
+      throw new Error('MobileFaceNet ONNX gagal dimuat. Cek path: ' + MODEL_BASE + '/mobile_facenet.onnx');
+    }
+
+    // Load MiniFASNetV2
+    try {
+      livenessSession = await ort.InferenceSession.create(`${MODEL_BASE}/MiniFASNetV2.onnx`);
+      livenessInputName = livenessSession.inputNames[0];
+      livenessOutputName = livenessSession.outputNames[0];
+      const meta2 = livenessSession.inputMetadata?.[livenessInputName];
+      if(meta2 && meta2.dimensions) livenessInputShape = meta2.dimensions.map(d => d === -1 ? 1 : d);
+      console.log('✓ MiniFASNetV2 ONNX siap. Input:', livenessInputName, 'Shape:', livenessInputShape);
+    } catch(e) {
+      console.warn('MiniFASNetV2 gagal dimuat:', e.message);
+    }
+
+    modelsLoaded = true;
+  } catch(e){
+    console.error('Gagal memuat model:', e);
+    alert('Model AI gagal dimuat: ' + e.message);
   }
-  return new faceapi.SsdMobilenetv1Options({
-    minConfidence: CFG.minDetectorConfidence
-  });
 }
 
 async function loadServerConfig(){
   try{
     const result = await api('public_config');
     const c = result.config || {};
-
-    if(Number.isFinite(c.min_face_quality))         CFG.minQuality = c.min_face_quality;
+    if(Number.isFinite(c.min_face_quality))         CFG.minQuality = Math.min(c.min_face_quality, 0.65);
     if(Number.isFinite(c.face_match_threshold))     CFG.faceMatchThreshold = c.face_match_threshold;
     if(Number.isFinite(c.min_match_margin))         CFG.minMatchMargin = c.min_match_margin;
     if(Number.isFinite(c.enroll_min_samples))       ENROLL_MIN = c.enroll_min_samples;
     if(Number.isFinite(c.enroll_max_samples))       ENROLL_MAX = c.enroll_max_samples;
-
     if(Number.isFinite(c.max_radius_meters))        CFG.maxRadiusMeters = c.max_radius_meters;
     if(Number.isFinite(c.max_gps_accuracy_meters))  CFG.maxGpsAccuracyMeters = c.max_gps_accuracy_meters;
-    if(Number.isFinite(c.cooldown_seconds))         CFG.cooldownSeconds = c.cooldown_seconds;
+    if(Number.isFinite(c.yaw_threshold))            CFG.yawThreshold = c.yaw_threshold;
+    if(Number.isFinite(c.pitch_threshold))          CFG.pitchThreshold = c.pitch_threshold;
+    if(Number.isFinite(c.front_yaw_dead))           CFG.frontYawDead = c.front_yaw_dead;
+    if(Number.isFinite(c.front_yaw_max))            CFG.frontYawMax = c.front_yaw_max;
+    if(Number.isFinite(c.front_pitch_dead))         CFG.frontPitchDead = c.front_pitch_dead;
+    if(Number.isFinite(c.front_pitch_max))          CFG.frontPitchMax = c.front_pitch_max;
+    if(Number.isFinite(c.blink_target))             BLINK_TARGET = Math.max(1, c.blink_target);
+    if(Number.isFinite(c.pose_lock_threshold))      CFG.poseLockThreshold = c.pose_lock_threshold;
+    if(Number.isFinite(c.pose_stable_ms))           CFG.poseStableMs = c.pose_stable_ms;
+    if(Number.isFinite(c.liveness_stable_ms))       CFG.livenessStableMs = c.liveness_stable_ms;
 
     if(c.office_lat !== null && c.office_lat !== undefined &&
        c.office_lng !== null && c.office_lng !== undefined &&
@@ -543,83 +567,36 @@ async function loadServerConfig(){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
 
-    if(typeof c.use_fast_detector === 'boolean')    CFG.useFastDetector = c.use_fast_detector;
-    if(Number.isFinite(c.detector_input_size))      CFG.detectorInputSize = c.detector_input_size;
-    if(Number.isFinite(c.detector_score_threshold)) CFG.detectorScoreThreshold = c.detector_score_threshold;
-    if(Number.isFinite(c.min_detector_confidence))  CFG.minDetectorConfidence = c.min_detector_confidence;
-    if(Number.isFinite(c.min_face_pixels))          CFG.minFacePixels = c.min_face_pixels;
-
-    if(Number.isFinite(c.yaw_threshold))            CFG.yawThreshold = c.yaw_threshold;
-    if(Number.isFinite(c.pitch_threshold))          CFG.pitchThreshold = c.pitch_threshold;
-    if(Number.isFinite(c.front_yaw_dead))           CFG.frontYawDead = c.front_yaw_dead;
-    if(Number.isFinite(c.front_yaw_max))            CFG.frontYawMax = c.front_yaw_max;
-    if(Number.isFinite(c.front_pitch_dead))         CFG.frontPitchDead = c.front_pitch_dead;
-    if(Number.isFinite(c.front_pitch_max))          CFG.frontPitchMax = c.front_pitch_max;
-
-    if(Number.isFinite(c.blink_closed_ear))         CFG.blinkClosedEar = c.blink_closed_ear;
-    if(Number.isFinite(c.blink_open_ear))           CFG.blinkOpenEar = c.blink_open_ear;
-    if(Number.isFinite(c.blink_target))             BLINK_TARGET = Math.max(1, c.blink_target);
-
-    if(Number.isFinite(c.pose_lock_threshold))      CFG.poseLockThreshold = c.pose_lock_threshold;
-    if(Number.isFinite(c.pose_stable_ms))           CFG.poseStableMs = c.pose_stable_ms;
-    if(Number.isFinite(c.liveness_stable_ms))       CFG.livenessStableMs = c.liveness_stable_ms;
-
-    const v = c.app_version || '2.0.0';
+    const v = c.app_version || '3.0.0';
     const subtitle = document.querySelector('#home h1 + p');
-    if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — server-side verification';
-
-    console.log('[CFG] Loaded from server:', {
-      poseLockThreshold: CFG.poseLockThreshold,
-      poseStableMs: CFG.poseStableMs,
-      frontYawDead: CFG.frontYawDead,
-      blinkTarget: BLINK_TARGET,
-      blinkClosedEar: CFG.blinkClosedEar,
-      useFastDetector: CFG.useFastDetector,
-      maxRadiusMeters: CFG.maxRadiusMeters,
-      livenessStableMs: CFG.livenessStableMs
-    });
-  }catch(e){
-    console.warn('Server config gagal dimuat, pakai default:', e.message);
-  }
+    if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — MediaPipe + ONNX';
+    console.log('[CFG] Server config loaded');
+  }catch(e){ console.warn('Server config gagal dimuat:', e.message); }
 }
 
 function clearLocalSession(){
   authToken=''; currentUser=null;
-  localStorage.removeItem('faceprint_v2_token');
+  localStorage.removeItem('faceprint_v3_token');
   setSessionBadge();
 }
-
 async function restoreSession(){
   if(!authToken) return;
-  try{
-    const result=await api('auth_me');
-    currentUser=result.user;
-    setSessionBadge();
-  }catch(e){ clearLocalSession(); }
+  try{ const result=await api('auth_me'); currentUser=result.user; setSessionBadge(); }
+  catch(e){ clearLocalSession(); }
 }
-
-window.addEventListener('load',async()=>{
-  await loadServerConfig();
-  await restoreSession();
-  await loadModels();
-});
 
 /* ============================================================
  * CAMERA
  * ========================================================== */
-
 async function openCamera(videoId){
   const s=await navigator.mediaDevices.getUserMedia({
-    video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},
-    audio:false
+    video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false
   });
   $(videoId).srcObject=s;
   await new Promise(resolve=>{$(videoId).onloadedmetadata=resolve});
   return s;
 }
-
 function stopStream(s){ if(s) s.getTracks().forEach(t=>t.stop()); }
-
 function stopAllCameras(){
   poseLoopRunning=false;
   stopStream(stream);stream=null;
@@ -628,122 +605,241 @@ function stopAllCameras(){
 }
 
 /* ============================================================
- * FACE DETECTION HELPERS
+ * MEDIAPIPE DETECTION
  * ========================================================== */
-
-async function detectFaceLandmarks(video){
-  try {
-    return await faceapi.detectSingleFace(video, getDetectorOptions()).withFaceLandmarks();
-  } catch(e){ return null; }
-}
-
-async function detectFaceFull(video){
-  try {
-    return await faceapi.detectSingleFace(video, getDetectorOptions())
-      .withFaceLandmarks().withFaceDescriptor();
-  } catch(e){ return null; }
+let _lastDetectTs = 0;
+async function detectFaceMediaPipe(video){
+  if(!faceLandmarker || video.readyState < 2 || !video.videoWidth) return null;
+  try{
+    const ts = performance.now();
+    if(ts - _lastDetectTs < 30) return null; // throttle ~33fps
+    _lastDetectTs = ts;
+    const results = faceLandmarker.detectForVideo(video, ts);
+    if(!results || !results.faceLandmarks || !results.faceLandmarks.length) return null;
+    return results;
+  }catch(e){ return null; }
 }
 
 /* ============================================================
- * FACE QUALITY / LANDMARKS
+ * FACE ALIGNMENT (Umeyama-like 2-point + 5-point template)
  * ========================================================== */
+const ARCFACE_TEMPLATE_112 = [
+  {x: 38.2946, y: 51.6963},  // left eye
+  {x: 73.5318, y: 51.5014},  // right eye
+  {x: 56.0252, y: 71.7366},  // nose
+  {x: 41.5493, y: 92.3655},  // left mouth
+  {x: 70.7299, y: 92.2041}   // right mouth
+];
 
-function getBoxQuality(detection,canvas){
-  const box=detection.detection.box;
-  const area=box.width*box.height;
-  const sizeScore=Math.min(1,Math.sqrt(area)/180);
-  const centerX=box.x+box.width/2;
-  const centerY=box.y+box.height/2;
-  const dx=Math.abs(centerX-canvas.width/2)/(canvas.width/2);
-  const dy=Math.abs(centerY-canvas.height/2)/(canvas.height/2);
-  const centerScore=Math.max(0,1-(dx+dy)/2);
-  return Math.max(0,Math.min(1,0.65*sizeScore+0.35*centerScore));
+function getFivePoints(landmarks, vw, vh){
+  // MediaPipe 468-landmark indices
+  const le = landmarks[33];   // left eye outer
+  const re = landmarks[263];  // right eye outer
+  const n  = landmarks[1];    // nose tip
+  const lm = landmarks[61];   // left mouth
+  const rm = landmarks[291];  // right mouth
+  return [
+    {x: le.x*vw, y: le.y*vh},
+    {x: re.x*vw, y: re.y*vh},
+    {x: n.x*vw,  y: n.y*vh},
+    {x: lm.x*vw, y: lm.y*vh},
+    {x: rm.x*vw, y: rm.y*vh}
+  ];
 }
 
-function estimateQuality(detection,video){
-  const box=detection.detection.box;
-  const minSide=Math.min(box.width,box.height);
-  if(minSide<CFG.minFacePixels) return 0.25;
-  const boxScore=getBoxQuality(detection,{width:video.videoWidth||640,height:video.videoHeight||480});
-  const confidence=Number(detection.detection.score||0);
-  return Math.max(0,Math.min(1,0.65*confidence+0.35*boxScore));
+/**
+ * Menyelaraskan wajah ke template 112x112 menggunakan transformasi
+ * similarity (rotation + scale + translation) berdasarkan 5 titik.
+ */
+function alignFaceToCanvas(video, landmarks, size = 112){
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const src = getFivePoints(landmarks, vw, vh);
+
+  // Scale template ke ukuran output
+  const scl = size / 112;
+  const dst = ARCFACE_TEMPLATE_112.map(p => ({x: p.x*scl, y: p.y*scl}));
+
+  // Hitung similarity transform dari src → dst
+  const t = computeSimilarity(src, dst);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  ctx.save();
+  ctx.translate(t.tx, t.ty);
+  ctx.rotate(t.angle);
+  ctx.scale(t.scale, t.scale);
+  // Transform sudah termasuk translasi ke origin
+  ctx.translate(-t.cx, -t.cy);
+  ctx.drawImage(video, 0, 0);
+  ctx.restore();
+
+  return canvas;
 }
 
-function eyeEAR(eye){
-  const p=eye.map(x=>({x:x.x,y:x.y}));
-  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-  return (dist(p[1],p[5])+dist(p[2],p[4]))/(2*dist(p[0],p[3]));
+function computeSimilarity(src, dst){
+  // Gunakan 2 titik (mata) untuk rotasi + skala
+  const s0 = src[0], s1 = src[1];
+  const d0 = dst[0], d1 = dst[1];
+
+  const sdx = s1.x - s0.x, sdy = s1.y - s0.y;
+  const ddx = d1.x - d0.x, ddy = d1.y - d0.y;
+  const sDist = Math.hypot(sdx, sdy) || 1;
+  const dDist = Math.hypot(ddx, ddy) || 1;
+
+  const scale = dDist / sDist;
+  const sAngle = Math.atan2(sdy, sdx);
+  const dAngle = Math.atan2(ddy, ddx);
+  const angle = dAngle - sAngle;
+
+  // Center dari 2 titik
+  const scx = (s0.x + s1.x) / 2, scy = (s0.y + s1.y) / 2;
+  const dcx = (d0.x + d1.x) / 2, dcy = (d0.y + d1.y) / 2;
+
+  // Hitung translasi agar setelah rotasi+scale, center src pindah ke center dst
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  // Rotasi srcCenter (relatif origin) → R * sc
+  const rx = cos * scx - sin * scy;
+  const ry = sin * scx + cos * scy;
+  const tx = dcx - scale * rx;
+  const ty = dcy - scale * ry;
+
+  return { scale, angle, tx, ty, cx: 0, cy: 0 };
 }
 
-function getEyes(landmarks){
-  const pts=landmarks.positions;
-  return { left:pts.slice(36,42), right:pts.slice(42,48) };
-}
+/* ============================================================
+ * CANVAS → ONNX TENSOR
+ * ========================================================== */
+function canvasToTensor(canvas, inputShape, layout){
+  // layout: 'NCHW' atau 'NHWC'
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const data = ctx.getImageData(0, 0, W, H).data;
 
-function getEyeState(landmarks){
-  const eyes=getEyes(landmarks);
-  const ear=(eyeEAR(eyes.left)+eyeEAR(eyes.right))/2;
-  return {ear, closed:ear<CFG.blinkClosedEar, open:ear>CFG.blinkOpenEar};
-}
+  const isNCHW = layout === 'NCHW';
+  const arr = new Float32Array(3 * H * W);
 
-function estimatePose(landmarks){
-  const p = landmarks.positions;
-  const leftEyeOuter  = p[36];
-  const rightEyeOuter = p[45];
-  const nose   = p[30];
-  const chin   = p[8];
-  const browL  = p[21];
-  const browR  = p[22];
-
-  const eyeMidX = (leftEyeOuter.x + rightEyeOuter.x) / 2;
-  const eyeDist = Math.max(1, Math.abs(rightEyeOuter.x - leftEyeOuter.x));
-  const yaw     = ((nose.x - eyeMidX) / eyeDist) * 100;
-
-  const browMidY   = (browL.y + browR.y) / 2;
-  const faceHeight = Math.max(1, chin.y - browMidY);
-  const pitchNorm  = (nose.y - browMidY) / faceHeight;
-  const pitch      = (pitchNorm - 0.42) * 100;
-
-  const roll = Math.atan2(rightEyeOuter.y - leftEyeOuter.y,
-                          rightEyeOuter.x - leftEyeOuter.x) * 180 / Math.PI;
-
-  return { yaw, pitch, roll };
-}
-
-function computePoseScore(poseIndex, landmarks, quality){
-  const pose = estimatePose(landmarks);
-  const eyes = getEyeState(landmarks);
-  const qFactor = Math.max(0, Math.min(1, quality / CFG.minQuality));
-
-  let raw = 0;
-
-  switch(poseIndex){
-    case 0: {
-      const yawAbs   = Math.abs(pose.yaw);
-      const pitchAbs = Math.abs(pose.pitch);
-      const yawScore = yawAbs <= CFG.frontYawDead ? 1 :
-        Math.max(0, 1 - (yawAbs - CFG.frontYawDead) / (CFG.frontYawMax - CFG.frontYawDead));
-      const pitchScore = pitchAbs <= CFG.frontPitchDead ? 1 :
-        Math.max(0, 1 - (pitchAbs - CFG.frontPitchDead) / (CFG.frontPitchMax - CFG.frontPitchDead));
-      const eyeScore = eyes.open ? 1 : 0.6;
-      raw = yawScore * 0.45 + pitchScore * 0.35 + eyeScore * 0.20;
-      break;
+  for(let y=0; y<H; y++){
+    for(let x=0; x<W; x++){
+      const i = (y*W + x) * 4;
+      const r = (data[i]   - 127.5) / 128.0;
+      const g = (data[i+1] - 127.5) / 128.0;
+      const b = (data[i+2] - 127.5) / 128.0;
+      if(isNCHW){
+        arr[0*H*W + y*W + x] = r;
+        arr[1*H*W + y*W + x] = g;
+        arr[2*H*W + y*W + x] = b;
+      } else {
+        const k = (y*W + x) * 3;
+        arr[k] = r; arr[k+1] = g; arr[k+2] = b;
+      }
     }
-    case 1: raw = pose.yaw <= 0 ? 0 : Math.min(1, pose.yaw / CFG.yawThreshold); break;
-    case 2: raw = pose.yaw >= 0 ? 0 : Math.min(1, -pose.yaw / CFG.yawThreshold); break;
-    case 3: raw = pose.pitch <= 0 ? 0 : Math.min(1, pose.pitch / CFG.pitchThreshold); break;
-    case 4: raw = pose.pitch >= 0 ? 0 : Math.min(1, -pose.pitch / CFG.pitchThreshold); break;
-    default: raw = 0;
   }
 
-  return Math.max(0, Math.min(1, raw * qFactor));
+  return new ort.Tensor('float32', arr, inputShape);
+}
+
+function getLayout(shape){
+  // shape [N, C, H, W] → NCHW ; [N, H, W, C] → NHWC
+  if(shape.length === 4 && shape[1] === 3) return 'NCHW';
+  if(shape.length === 4 && shape[3] === 3) return 'NHWC';
+  return 'NCHW';
 }
 
 /* ============================================================
- * HINTS & POSES
+ * EMBEDDING & LIVENESS
  * ========================================================== */
+async function getFaceEmbedding(canvas){
+  if(!faceRecognitionSession) throw new Error('Sesi pengenalan wajah belum siap.');
+  const tensor = canvasToTensor(canvas, faceInputShape, getLayout(faceInputShape));
+  const feeds = {};
+  feeds[faceInputName] = tensor;
+  const out = await faceRecognitionSession.run(feeds);
+  const result = out[faceOutputName] || out[Object.keys(out)[0]];
+  let data = Array.from(result.data);
+  // L2-normalize (MobileFaceNet biasanya belum normalized)
+  const norm = Math.sqrt(data.reduce((s,v) => s + v*v, 0)) || 1;
+  data = data.map(v => v / norm);
+  return data;
+}
 
-const POSES=[
+async function getLivenessScore(canvas){
+  if(!livenessSession) return 1.0; // skip kalau tidak ada model
+  const resized = document.createElement('canvas');
+  const H = livenessInputShape[2] || 80;
+  const W = livenessInputShape[3] || 80;
+  resized.width = W; resized.height = H;
+  const ctx = resized.getContext('2d');
+  ctx.drawImage(canvas, 0, 0, W, H);
+  const tensor = canvasToTensor(resized, livenessInputShape, getLayout(livenessInputShape));
+  const feeds = {};
+  feeds[livenessInputName] = tensor;
+  const out = await livenessSession.run(feeds);
+  const result = out[livenessOutputName] || out[Object.keys(out)[0]];
+  // Asumsi output [1, 3] = [real, print, replay] atau [fake, real]
+  const arr = Array.from(result.data);
+  // Klasifikasi: ambil skor "real" (kelas 1 untuk model 3-class)
+  return arr.length >= 3 ? arr[1] : (arr.length === 2 ? arr[1] : arr[0]);
+}
+
+/* ============================================================
+ * POSE dari MediaPipe landmarks
+ * ========================================================== */
+function estimatePose(landmarks, vw, vh){
+  const p = landmarks.map(lm => ({x: lm.x*vw, y: lm.y*vh, z: lm.z*vw}));
+  const leftEye  = p[33];
+  const rightEye = p[263];
+  const nose     = p[1];
+  const chin     = p[152];
+  const browL    = p[105];
+  const browR    = p[334];
+
+  const eyeMidX = (leftEye.x + rightEye.x) / 2;
+  const eyeDist = Math.max(1, Math.abs(rightEye.x - leftEye.x));
+  const yaw = ((nose.x - eyeMidX) / eyeDist) * 100;
+
+  const browMidY = (browL.y + browR.y) / 2;
+  const faceH = Math.max(1, chin.y - browMidY);
+  const pitch = ((nose.y - browMidY) / faceH - 0.42) * 100;
+
+  return { yaw, pitch };
+}
+
+function getBlinkScore(blendshapes){
+  if(!blendshapes || !blendshapes.length) return {left:0, right:0, closed:false};
+  const cats = blendshapes[0].categories;
+  const l = cats.find(c => c.categoryName === 'eyeBlinkLeft');
+  const r = cats.find(c => c.categoryName === 'eyeBlinkRight');
+  const ls = l ? l.score : 0;
+  const rs = r ? r.score : 0;
+  return { left: ls, right: rs, closed: (ls > CFG.blinkThreshold && rs > CFG.blinkThreshold) };
+}
+
+function computeQualityFromLandmarks(landmarks, vw, vh){
+  // Hitung bounding box
+  let minX = 1, maxX = 0, minY = 1, maxY = 0;
+  landmarks.forEach(lm => {
+    if(lm.x < minX) minX = lm.x; if(lm.x > maxX) maxX = lm.x;
+    if(lm.y < minY) minY = lm.y; if(lm.y > maxY) maxY = lm.y;
+  });
+  const w = (maxX - minX) * vw;
+  const h = (maxY - minY) * vh;
+  const minSide = Math.min(w, h);
+  const sizeScore = Math.min(1, minSide / 200);
+  const centerX = ((minX + maxX) / 2) * vw;
+  const centerY = ((minY + maxY) / 2) * vh;
+  const dx = Math.abs(centerX - vw/2) / (vw/2);
+  const dy = Math.abs(centerY - vh/2) / (vh/2);
+  const centerScore = Math.max(0, 1 - (dx + dy) / 2);
+  return Math.max(0, Math.min(1, 0.7*sizeScore + 0.3*centerScore));
+}
+
+/* ============================================================
+ * HINTS
+ * ========================================================== */
+const POSES = [
   'Langkah 1/6: Hadap depan',
   'Langkah 2/6: Menoleh ke kiri',
   'Langkah 3/6: Menoleh ke kanan',
@@ -751,7 +847,6 @@ const POSES=[
   'Langkah 5/6: Mendongak',
   'Langkah 6/6: Berkedip 1 kali'
 ];
-
 const POSE_HINTS = [
   { arrow:'<i class="fa-solid fa-arrows-to-dot"></i>', cls:'',     text:'Hadap depan, tatap kamera' },
   { arrow:'<i class="fa-solid fa-arrow-left-long"></i>', cls:'',   text:'Menoleh ke KIRI layar' },
@@ -760,49 +855,36 @@ const POSE_HINTS = [
   { arrow:'<i class="fa-solid fa-arrow-up-long"></i>', cls:'up',       text:'Dongakkan kepala' },
   { arrow:'<i class="fa-solid fa-eye-slash"></i>', cls:'blink',        text:'Berkedip sekali' }
 ];
-
 const LIVENESS_HINTS = {
   LEFT:  { arrow:'<i class="fa-solid fa-arrow-left-long"></i>',  cls:'',      text:'Menoleh ke KIRI layar' },
   RIGHT: { arrow:'<i class="fa-solid fa-arrow-right-long"></i>', cls:'right', text:'Menoleh ke KANAN layar' },
   BLINK: { arrow:'<i class="fa-solid fa-eye-slash"></i>',        cls:'blink', text:'Berkedip sekali' }
 };
 
-/* ============================================================
- * LIVENESS — V2.2.1 dengan PROGRESS-BASED HOLD
- *
- * Perubahan dari V2.2.0:
- * - Progress bar naik pelan saat skor tinggi, turun pelan saat turun
- * - Grace period 200ms: detection loss sesaat tidak reset progress
- * - Bar menampilkan progress sebenarnya (bukan skor instan)
- * ========================================================== */
+function labelChallenge(x){ return x==='LEFT'?'Lihat kiri':x==='RIGHT'?'Lihat kanan':'Kedip'; }
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 
+/* ============================================================
+ * LIVENESS
+ * ========================================================== */
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
   let current = 0;
-
-  // Progress-based hold
   let holdProgress = 0;
   let lastFrameTime = performance.now();
-
-  // Blink state
-  let blinkBaseline = 0.30;
-  let blinkFSM = 'waiting';
-  let blinkClosedAt = 0;
-  let blinkLastAt = 0;
-
-  // Grace period
-  const GRACE_MS = 250;
   let lastGoodFrame = performance.now();
+  const GRACE_MS = 250;
+  const holdRate  = 1 / Math.max(250, CFG.livenessStableMs);
+  const decayRate = 1 / (Math.max(250, CFG.livenessStableMs) * 3);
 
-  // Rate: hold penuh dalam livenessStableMs, decay 3x lebih lambat
-  const holdRatePerMs  = 1 / Math.max(250, CFG.livenessStableMs);
-  const decayRatePerMs = 1 / (Math.max(250, CFG.livenessStableMs) * 3);
+  // Blink FSM
+  let bFSM = 'waiting';
+  let bClosedAt = 0, bLastAt = 0;
 
-  if (uiPrefix === 'scan') {
+  if(uiPrefix === 'scan'){
     $('challenge-box').classList.remove('hidden');
     $('challenge-text').textContent = challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
   }
-
   initLivenessStepDots(uiPrefix, challenge.length);
   updateLivenessUI(uiPrefix, 0, null, current, challenge.length);
 
@@ -814,82 +896,54 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     const dt = Math.max(16, frameStart - lastFrameTime);
     lastFrameTime = frameStart;
 
-    const detection = await detectFaceLandmarks(video);
-
-    if(!detection){
-      // Grace period — hanya decay jika lama tidak terdeteksi
-      if (frameStart - lastGoodFrame > GRACE_MS) {
-        holdProgress = Math.max(0, holdProgress - decayRatePerMs * dt);
+    const results = await detectFaceMediaPipe(video);
+    if(!results){
+      if(frameStart - lastGoodFrame > GRACE_MS){
+        holdProgress = Math.max(0, holdProgress - decayRate * dt);
       }
       $(statusId).textContent = 'Wajah tidak terdeteksi';
       updateLivenessUI(uiPrefix, holdProgress, 'Wajah tidak terdeteksi', current, challenge.length);
-      await sleep(50);
+      await sleep(40);
       continue;
     }
-
     lastGoodFrame = frameStart;
-    const step = challenge[current];
-    const pose = estimatePose(detection.landmarks);
-    const eyes = getEyeState(detection.landmarks);
-    const now = frameStart;
 
-    let score = 0;
-    let advanced = false;
+    const step = challenge[current];
+    const landmarks = results.faceLandmarks[0];
+    const pose = estimatePose(landmarks, video.videoWidth, video.videoHeight);
+    const blink = getBlinkScore(results.faceBlendshapes);
+
+    let score = 0, advanced = false;
 
     if(step === 'BLINK'){
-      // Adaptive baseline
-      if (eyes.ear > blinkBaseline) blinkBaseline = blinkBaseline * 0.9 + eyes.ear * 0.1;
-      const closeTh  = Math.min(0.28, blinkBaseline * 0.75);
-      const reopenTh = Math.max(0.22, blinkBaseline * 0.85);
-
-      if (now - blinkLastAt > 250) {
-        if (blinkFSM === 'waiting') {
-          if (eyes.ear < closeTh) {
-            blinkFSM = 'closed';
-            blinkClosedAt = now;
-            holdProgress = 0.5;
-          } else {
-            holdProgress = 0;
-          }
+      const now = frameStart;
+      if(now - bLastAt > 250){
+        if(bFSM === 'waiting'){
+          if(blink.closed){ bFSM = 'closed'; bClosedAt = now; }
+          holdProgress = blink.closed ? 0.5 : 0;
         } else {
-          // Tunggu mata buka
-          if (eyes.ear > reopenTh) {
-            blinkFSM = 'waiting';
-            blinkLastAt = now;
+          if(!blink.closed){
+            bFSM = 'waiting';
+            bLastAt = now;
             holdProgress = 1;
             advanced = true;
-          } else if (now - blinkClosedAt > 1200) {
-            // Timeout tutup terlalu lama
-            blinkFSM = 'waiting';
-            holdProgress = 0;
+          } else if(now - bClosedAt > 1200){
+            bFSM = 'waiting'; holdProgress = 0;
           } else {
             holdProgress = 0.75;
           }
         }
-      } else {
-        holdProgress = 1;
       }
       score = holdProgress;
     } else if(step === 'LEFT' || step === 'RIGHT'){
-      let poseScore = 0;
-      if (step === 'LEFT') {
-        poseScore = pose.yaw <= 0 ? 0 : Math.min(1, pose.yaw / CFG.yawThreshold);
-      } else {
-        poseScore = pose.yaw >= 0 ? 0 : Math.min(1, -pose.yaw / CFG.yawThreshold);
-      }
+      let s = 0;
+      if(step === 'LEFT')  s = pose.yaw <= 0 ? 0 : Math.min(1, pose.yaw / CFG.yawThreshold);
+      else                 s = pose.yaw >= 0 ? 0 : Math.min(1, -pose.yaw / CFG.yawThreshold);
 
-      // Progress-based fill
-      if (poseScore >= 0.75) {
-        // Fill — makin tinggi skor, makin cepat
-        holdProgress = Math.min(1, holdProgress + holdRatePerMs * dt * (0.5 + poseScore * 0.5));
-      } else if (poseScore >= 0.50) {
-        // Hold — tidak naik, tidak turun
-      } else {
-        // Decay lembut
-        holdProgress = Math.max(0, holdProgress - decayRatePerMs * dt);
-      }
-
-      if (holdProgress >= 1) advanced = true;
+      if(s >= 0.75) holdProgress = Math.min(1, holdProgress + holdRate * dt * (0.5 + s*0.5));
+      else if(s >= 0.50) { /* hold */ }
+      else holdProgress = Math.max(0, holdProgress - decayRate * dt);
+      if(holdProgress >= 1) advanced = true;
       score = holdProgress;
     }
 
@@ -897,294 +951,206 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     updateLivenessUI(uiPrefix, score, null, current, challenge.length);
 
     if(advanced){
-      current++;
-      holdProgress = 0;
-      blinkFSM = 'waiting';
+      current++; holdProgress = 0; bFSM = 'waiting';
       showLivenessLockBadge(uiPrefix);
       await sleep(350);
       hideLivenessLockBadge(uiPrefix);
       updateLivenessUI(uiPrefix, 0, null, current, challenge.length);
     }
-
-    await sleep(30);
+    await sleep(25);
   }
-
   updateLivenessUI(uiPrefix, 1, 'Verifikasi selesai', challenge.length, challenge.length);
-  return {pass:true, steps_completed:challenge};
+  return { pass:true, steps_completed:challenge };
 }
-
-function labelChallenge(x){
-  return x==='LEFT'?'Lihat kiri':x==='RIGHT'?'Lihat kanan':'Kedip';
-}
-function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 
 function initLivenessStepDots(prefix, total){
-  const dots = document.querySelectorAll('[data-' + prefix + '-step]');
-  dots.forEach(function(el){
-    const step = Number(el.dataset[prefix + 'Step']);
-    el.style.display = step < total ? '' : 'none';
+  document.querySelectorAll('[data-'+prefix+'-step]').forEach(el => {
+    const s = Number(el.dataset[prefix+'Step']);
+    el.style.display = s < total ? '' : 'none';
     el.classList.remove('done','active');
-    if(step === 0) el.classList.add('active');
+    if(s === 0) el.classList.add('active');
   });
 }
-
-function updateLivenessStepDots(prefix, current, total){
-  const dots = document.querySelectorAll('[data-' + prefix + '-step]');
-  dots.forEach(function(el){
-    const step = Number(el.dataset[prefix + 'Step']);
+function updateLivenessStepDots(prefix, current){
+  document.querySelectorAll('[data-'+prefix+'-step]').forEach(el => {
+    const s = Number(el.dataset[prefix+'Step']);
     el.classList.remove('done','active');
-    if(step < current) el.classList.add('done');
-    else if(step === current) el.classList.add('active');
+    if(s < current) el.classList.add('done');
+    else if(s === current) el.classList.add('active');
   });
 }
-
 function updateLivenessUI(prefix, score, overrideText, current, total){
   const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
-  const fill = $(prefix + '-meter-fill');
-  const label = $(prefix + '-meter-label');
-  const status = $(prefix + '-score-status');
-  const hint = $(prefix + '-hint');
-  const hintArrow = $(prefix + '-hint-arrow');
-  const hintText = $(prefix + '-hint-text');
-
+  const fill = $(prefix+'-meter-fill');
+  const label = $(prefix+'-meter-label');
+  const status = $(prefix+'-score-status');
+  const hint = $(prefix+'-hint');
+  const hintArrow = $(prefix+'-hint-arrow');
+  const hintText = $(prefix+'-hint-text');
   if(!fill) return;
-
-  fill.style.width = pct + '%';
-  label.textContent = pct + '%';
-  status.textContent = pct + '%';
-
-  if(pct >= 80){
-    hint.classList.remove('text-slate-300','text-yellow-400','text-red-400');
-    hint.classList.add('text-emerald-400');
-    status.className = 'font-mono text-emerald-400';
-    fill.classList.add('locked');
-  } else if(pct >= 40){
-    hint.classList.remove('text-slate-300','text-emerald-400','text-red-400');
-    hint.classList.add('text-yellow-400');
-    status.className = 'font-mono text-yellow-400';
-    fill.classList.remove('locked');
-  } else {
-    hint.classList.remove('text-slate-300','text-emerald-400','text-yellow-400');
-    hint.classList.add('text-red-400');
-    status.className = 'font-mono text-red-400';
-    fill.classList.remove('locked');
-  }
+  fill.style.width = pct+'%'; label.textContent = pct+'%'; status.textContent = pct+'%';
+  if(pct >= 80){ hint.classList.remove('text-slate-300','text-yellow-400','text-red-400'); hint.classList.add('text-emerald-400'); status.className='font-mono text-emerald-400'; fill.classList.add('locked'); }
+  else if(pct >= 40){ hint.classList.remove('text-slate-300','text-emerald-400','text-red-400'); hint.classList.add('text-yellow-400'); status.className='font-mono text-yellow-400'; fill.classList.remove('locked'); }
+  else { hint.classList.remove('text-slate-300','text-emerald-400','text-yellow-400'); hint.classList.add('text-red-400'); status.className='font-mono text-red-400'; fill.classList.remove('locked'); }
 
   const challenge = faceSession && faceSession.challenge;
-  let hintKey = null;
-  if(challenge && current < challenge.length) hintKey = challenge[current];
-
+  const hintKey = (challenge && current < challenge.length) ? challenge[current] : null;
   if(hintKey && LIVENESS_HINTS[hintKey]){
     const h = LIVENESS_HINTS[hintKey];
-    hintArrow.className = 'pose-arrow ' + (h.cls || '');
+    hintArrow.className = 'pose-arrow '+(h.cls||'');
     hintArrow.innerHTML = h.arrow;
     hintText.textContent = overrideText || h.text;
-  } else if (overrideText) {
+  } else if(overrideText){
     hintText.textContent = overrideText;
   }
-
-  updateLivenessStepDots(prefix, current, total);
+  updateLivenessStepDots(prefix, current);
 }
-
-function showLivenessLockBadge(prefix){
-  const b = $(prefix + '-lock-badge');
-  if(b) b.classList.remove('hidden');
-}
-function hideLivenessLockBadge(prefix){
-  const b = $(prefix + '-lock-badge');
-  if(b) b.classList.add('hidden');
-}
+function showLivenessLockBadge(p){ const b=$(p+'-lock-badge'); if(b) b.classList.remove('hidden'); }
+function hideLivenessLockBadge(p){ const b=$(p+'-lock-badge'); if(b) b.classList.add('hidden'); }
 
 /* ============================================================
  * FACE SESSION / VERIFICATION
  * ========================================================== */
-
-async function newFaceSession(){
-  faceSession=await api('face_session');
-  return faceSession;
-}
+async function newFaceSession(){ faceSession = await api('face_session'); return faceSession; }
 
 async function captureProbe(videoId){
-  const video=$(videoId);
-  const detection=await detectFaceFull(video);
-  if(!detection) throw new Error('Wajah tidak terdeteksi.');
-  const quality=estimateQuality(detection,video);
-  if(quality<CFG.minQuality) throw new Error('Kualitas wajah terlalu rendah.');
+  const video = $(videoId);
+  const results = await detectFaceMediaPipe(video);
+  if(!results) throw new Error('Wajah tidak terdeteksi.');
 
-  return {
-    descriptor:Array.from(detection.descriptor),
-    quality
-  };
+  const landmarks = results.faceLandmarks[0];
+  const vw = video.videoWidth, vh = video.videoHeight;
+
+  // Quality check
+  const quality = computeQualityFromLandmarks(landmarks, vw, vh);
+  if(quality < CFG.minQuality) throw new Error('Kualitas wajah terlalu rendah (' + Math.round(quality*100) + '%).');
+
+  // Align face
+  const aligned = alignFaceToCanvas(video, landmarks, 112);
+
+  // Liveness check
+  let liveScore = 1.0;
+  try { liveScore = await getLivenessScore(aligned); } catch(e){ console.warn('Liveness check skipped:', e); }
+
+  // Embedding
+  const descriptor = await getFaceEmbedding(aligned);
+
+  return { descriptor, quality, liveScore };
 }
 
-async function verifyCurrentFace(videoId,statusId,uiPrefix){
+async function verifyCurrentFace(videoId, statusId, uiPrefix){
   if(!faceSession) await newFaceSession();
-
-  const live=await runLiveness(videoId,statusId,faceSession.challenge,uiPrefix);
-  const probe=await captureProbe(videoId);
-
-  faceVerification=await api('face_verify',{
-    face_session_id:faceSession.face_session_id,
-    descriptor:probe.descriptor,
-    quality:{score:probe.quality},
-    liveness:{
-      result:'PASS',
-      challenge_id:faceSession.challenge_id,
-      steps_completed:live.steps_completed
+  const live = await runLiveness(videoId, statusId, faceSession.challenge, uiPrefix);
+  const probe = await captureProbe(videoId);
+  faceVerification = await api('face_verify', {
+    face_session_id: faceSession.face_session_id,
+    descriptor: probe.descriptor,
+    quality: { score: probe.quality },
+    liveness: {
+      result: 'PASS',
+      challenge_id: faceSession.challenge_id,
+      steps_completed: live.steps_completed
     }
   });
-
   return faceVerification;
 }
 
 /* ============================================================
  * GPS
  * ========================================================== */
-
 function haversineClient_(lat1,lng1,lat2,lng2){
   const R = 6371000;
-  const p1 = lat1 * Math.PI / 180;
-  const p2 = lat2 * Math.PI / 180;
-  const dp = (lat2-lat1) * Math.PI / 180;
-  const dl = (lng2-lng1) * Math.PI / 180;
-  const a = Math.sin(dp/2)*Math.sin(dp/2) +
-            Math.cos(p1)*Math.cos(p2)*
-            Math.sin(dl/2)*Math.sin(dl/2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const p1 = lat1*Math.PI/180, p2 = lat2*Math.PI/180;
+  const dp = (lat2-lat1)*Math.PI/180, dl = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dp/2)*Math.sin(dp/2) + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)*Math.sin(dl/2);
+  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
-
-function formatDistance_(m){
-  if(m < 1000) return Math.round(m) + ' m';
-  return (m/1000).toFixed(2) + ' km';
-}
+function formatDistance_(m){ return m < 1000 ? Math.round(m)+' m' : (m/1000).toFixed(2)+' km'; }
 
 function getGPS(){
   $('gps-status').textContent='Mengecek GPS...';
   $('gps-status').className='font-bold text-slate-400';
   $('gps-distance').textContent='';
   $('gps-distance').className='text-xs text-slate-400 block mt-1';
-
-  if(!navigator.geolocation){
-    $('gps-status').textContent='GPS tidak didukung';
-    $('gps-status').className='font-bold text-red-400';
-    return;
-  }
-
+  if(!navigator.geolocation){ $('gps-status').textContent='GPS tidak didukung'; return; }
   navigator.geolocation.getCurrentPosition(
     p=>{
-      gps={latitude:p.coords.latitude,longitude:p.coords.longitude,gps_accuracy:p.coords.accuracy};
-
+      gps = { latitude:p.coords.latitude, longitude:p.coords.longitude, gps_accuracy:p.coords.accuracy };
       const acc = Math.round(gps.gps_accuracy);
       const accOk = acc <= CFG.maxGpsAccuracyMeters;
-
-      $('gps-status').textContent = (accOk ? '±' : '⚠ ±') + acc + ' m';
+      $('gps-status').textContent = (accOk?'±':'⚠ ±') + acc + ' m';
       $('gps-status').className = accOk ? 'font-bold text-emerald-400' : 'font-bold text-red-400';
-
-      if(!officeCoords){
-        $('gps-distance').textContent = 'Lokasi kantor belum diset di tab Config';
-        $('gps-distance').className = 'text-xs text-yellow-400 block mt-1';
-        return;
-      }
-
+      if(!officeCoords){ $('gps-distance').textContent = 'Lokasi kantor belum diset'; return; }
       const dist = haversineClient_(officeCoords.lat, officeCoords.lng, gps.latitude, gps.longitude);
-      const inRange = dist <= CFG.maxRadiusMeters;
-
+      const ok = dist <= CFG.maxRadiusMeters;
       $('gps-distance').textContent = 'Jarak ke kantor: ' + formatDistance_(dist);
-      $('gps-distance').className = inRange
-        ? 'text-xs text-emerald-400 block mt-1'
-        : 'text-xs text-red-400 block mt-1';
-
-      if(!inRange){
-        $('gps-status').textContent = '⚠ Di luar wilayah';
-        $('gps-status').className = 'font-bold text-red-400';
-      }
+      $('gps-distance').className = ok ? 'text-xs text-emerald-400 block mt-1' : 'text-xs text-red-400 block mt-1';
+      if(!ok){ $('gps-status').textContent = '⚠ Di luar wilayah'; $('gps-status').className = 'font-bold text-red-400'; }
     },
-    e=>{
-      gps=null;
-      $('gps-status').textContent='GPS gagal';
-      $('gps-status').className='font-bold text-red-400';
-      $('gps-distance').textContent='Pastikan izin lokasi diizinkan';
-      $('gps-distance').className='text-xs text-red-400 block mt-1';
-    },
-    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+    e=>{ gps=null; $('gps-status').textContent='GPS gagal'; $('gps-status').className='font-bold text-red-400'; },
+    {enableHighAccuracy:true, timeout:15000, maximumAge:0}
   );
 }
 
 /* ============================================================
  * ATTENDANCE
  * ========================================================== */
-
 function startAttendance(type){
-  const btn=type==='in'?$('btn-start-in'):$('btn-start-out');
-  attendanceType=type;
-  if(!modelsLoaded){alert('Model AI belum siap.');return}
-  setBusy(btn,true,'Menyiapkan kamera...');
+  const btn = type==='in' ? $('btn-start-in') : $('btn-start-out');
+  attendanceType = type;
+  if(!modelsLoaded){ alert('Model AI belum siap.'); return; }
+  setBusy(btn, true, 'Menyiapkan kamera...');
   show('scanner');
-  $('scanner-title').textContent=type==='in'?'FacePrint In':'FacePrint Out';
-  $('scan-status').textContent='Mempersiapkan...';
-  $('face-status').textContent='Belum diverifikasi';
-  $('btn-attendance').disabled=true;
+  $('scanner-title').textContent = type==='in' ? 'FacePrint In' : 'FacePrint Out';
+  $('scan-status').textContent = 'Mempersiapkan...';
+  $('face-status').textContent = 'Belum diverifikasi';
+  $('btn-attendance').disabled = true;
   startAttendanceScanner();
   getGPS();
 }
 
 async function startAttendanceScanner(){
   try{
-    scannerRunning=true;
-    stream=await openCamera('scan-video');
-    const session=await newFaceSession();
+    scannerRunning = true;
+    stream = await openCamera('scan-video');
+    const session = await newFaceSession();
     $('challenge-box').classList.remove('hidden');
-    $('challenge-text').textContent=session.challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
-
-    const result=await verifyCurrentFace('scan-video','scan-status','scan');
-
-    if(!scannerRunning)return;
-
-    $('face-status').textContent='✓ Terverifikasi';
-    $('face-status').className='font-bold text-emerald-400';
-    $('scan-status').textContent='Wajah terverifikasi';
-    $('btn-attendance').disabled=false;
-    stopStream(stream);stream=null;
-    scannerRunning=false;
+    $('challenge-text').textContent = session.challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
+    const result = await verifyCurrentFace('scan-video', 'scan-status', 'scan');
+    if(!scannerRunning) return;
+    $('face-status').textContent = '✓ Terverifikasi';
+    $('face-status').className = 'font-bold text-emerald-400';
+    $('scan-status').textContent = 'Wajah terverifikasi';
+    $('btn-attendance').disabled = false;
+    stopStream(stream); stream=null; scannerRunning=false;
   }catch(e){
     console.error(e);
     if(scannerRunning) alert(e.message||'Verifikasi gagal.');
-    scannerRunning=false;
-    stopStream(stream);stream=null;
-  } finally {
-    setBusy($('btn-start-in'),false);
-    setBusy($('btn-start-out'),false);
+    scannerRunning=false; stopStream(stream); stream=null;
+  }finally{
+    setBusy($('btn-start-in'), false);
+    setBusy($('btn-start-out'), false);
   }
 }
 
 async function submitAttendance(){
-  if(!faceVerification || !gps || !faceSession){
-    alert('Verifikasi wajah dan GPS belum siap.');return;
-  }
-
-  const btn=$('btn-attendance');
-  btn.disabled=true;btn.textContent='Mengirim...';
-
+  if(!faceVerification || !gps || !faceSession){ alert('Verifikasi wajah dan GPS belum siap.'); return; }
+  const btn = $('btn-attendance');
+  btn.disabled = true; btn.textContent = 'Mengirim...';
   try{
-    const result=await api('absen',{
-      face_session_id:faceVerification.face_session_id,
-      verification_token:faceVerification.verification_token,
-      attendanceType:attendanceType,
-      latitude:gps.latitude,
-      longitude:gps.longitude,
-      gps_accuracy:gps.gps_accuracy,
-      face_distance:faceVerification.distance,
-      device_info:navigator.userAgent
+    const result = await api('absen', {
+      face_session_id: faceVerification.face_session_id,
+      verification_token: faceVerification.verification_token,
+      attendanceType: attendanceType,
+      latitude: gps.latitude,
+      longitude: gps.longitude,
+      gps_accuracy: gps.gps_accuracy,
+      face_distance: faceVerification.distance,
+      device_info: navigator.userAgent
     });
-
     await Swal.fire({
-      icon:'success',
-      title:'Absensi Berhasil',
-      background:'#1c1c1e',
-      color:'#fff',
-      confirmButtonColor:'#32de84',
-      timer: 2500,
-      timerProgressBar: true,
+      icon:'success', title:'Absensi Berhasil', background:'#1c1c1e', color:'#fff',
+      confirmButtonColor:'#32de84', timer:2500, timerProgressBar:true,
       html:`<div style="line-height:1.8;text-align:left">
         <b>Nama:</b> ${escapeHtml(result.user.name)}<br>
         <b>Tipe:</b> ${result.type}<br>
@@ -1192,258 +1158,289 @@ async function submitAttendance(){
         <b>Waktu server:</b> ${escapeHtml(result.timestamp_server)}
       </div>`
     });
-
     goHome();
   }catch(e){
     alert(e.message||'Absensi gagal.');
-    btn.disabled=false;btn.textContent='Proses Absen';
+    btn.disabled = false; btn.textContent = 'Proses Absen';
   }
 }
 
 /* ============================================================
- * ADMIN LOGIN / REGISTRATION
+ * BUSY HELPERS
  * ========================================================== */
-
-function setBusy(btn, busy, text) {
+function setBusy(btn, busy, text){
   if(!btn) return;
   if(busy){
-    if(!btn.dataset.originalText) btn.dataset.originalText=btn.innerHTML;
-    btn.disabled=true; btn.classList.add('busy');
-    btn.innerHTML='<span class="spinner"></span>'+escapeHtml(text||'Memproses...');
+    if(!btn.dataset.originalText) btn.dataset.originalText = btn.innerHTML;
+    btn.disabled = true; btn.classList.add('busy');
+    btn.innerHTML = '<span class="spinner"></span>'+escapeHtml(text||'Memproses...');
   } else {
-    btn.disabled=false; btn.classList.remove('busy');
-    if(btn.dataset.originalText) btn.innerHTML=btn.dataset.originalText;
+    btn.disabled = false; btn.classList.remove('busy');
+    if(btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
   }
 }
 async function withBusy(btn, task, text){
-  setBusy(btn,true,text);
-  try{return await task();}finally{setBusy(btn,false);}
+  setBusy(btn, true, text);
+  try{ return await task(); } finally { setBusy(btn, false); }
 }
-function showForgotPassword(){ $('forgot-box').classList.toggle('hidden'); $('forgot-user').value=$('login-user').value.trim(); }
+function showForgotPassword(){ $('forgot-box').classList.toggle('hidden'); $('forgot-user').value = $('login-user').value.trim(); }
 
+/* ============================================================
+ * LOGIN / PASSWORD
+ * ========================================================== */
 async function requestPasswordRecovery(){
-  const btn=$('btn-forgot'), username=$('forgot-user').value.trim();
+  const btn = $('btn-forgot'), username = $('forgot-user').value.trim();
   if(!username){ alert('Username wajib diisi.'); return; }
   await withBusy(btn, async()=>{
     try{
-      const r=await api('password_recovery_request',{username,device_info:navigator.userAgent});
-      $('forgot-result').innerHTML='<span class="text-emerald-400">'+escapeHtml(r.message||'Request dibuat.')+'</span><br><b>Request ID:</b> '+escapeHtml(r.request_id||'') ;
-    }catch(e){$('forgot-result').textContent=e.message||'Gagal membuat request.';}
-  },'Membuat request...');
+      const r = await api('password_recovery_request', { username, device_info:navigator.userAgent });
+      $('forgot-result').innerHTML = '<span class="text-emerald-400">'+escapeHtml(r.message||'Request dibuat.')+'</span><br><b>Request ID:</b> '+escapeHtml(r.request_id||'');
+    }catch(e){ $('forgot-result').textContent = e.message||'Gagal membuat request.'; }
+  }, 'Membuat request...');
 }
 
 async function changeUserPassword(){
-  const btn=$('btn-user-change-password');
-  const current=$('user-current-password').value, next=$('user-new-password').value;
-  if(!current||!next){alert('Isi password semasa dan password baru.');return;}
+  const btn = $('btn-user-change-password');
+  const current = $('user-current-password').value, next = $('user-new-password').value;
+  if(!current || !next){ alert('Isi password semasa dan password baru.'); return; }
   await withBusy(btn, async()=>{
-    try{const r=await api('change_password',{session_token:authToken,current_password:current,new_password:next,device_info:navigator.userAgent}); alert(r.message||'Password berjaya ditukar.'); $('user-current-password').value='';$('user-new-password').value='';}
-    catch(e){alert(e.message||'Gagal menukar password.');}
-  },'Menyimpan...');
+    try{ const r = await api('change_password', { session_token:authToken, current_password:current, new_password:next, device_info:navigator.userAgent }); alert(r.message||'Password berjaya ditukar.'); $('user-current-password').value=''; $('user-new-password').value=''; }
+    catch(e){ alert(e.message||'Gagal menukar password.'); }
+  }, 'Menyimpan...');
 }
 
 async function loginAdmin(event){
   event.preventDefault();
-  const btn=$('btn-login');
+  const btn = $('btn-login');
   await withBusy(btn, async()=>{
     try{
-      const result=await api('auth_login',{username:$('login-user').value.trim(),password:$('login-pass').value,device_info:navigator.userAgent});
-      authToken=result.token; currentUser=result.user; localStorage.setItem('faceprint_v2_token',authToken); setSessionBadge();
-      $('login-pass').value='';
+      const result = await api('auth_login', { username:$('login-user').value.trim(), password:$('login-pass').value, device_info:navigator.userAgent });
+      authToken = result.token; currentUser = result.user;
+      localStorage.setItem('faceprint_v3_token', authToken);
+      setSessionBadge();
+      $('login-pass').value = '';
       if(String(currentUser.role).toLowerCase()==='admin'){
-        $('admin-session-info').textContent='Admin: '+currentUser.name+' ('+currentUser.username+')';
+        $('admin-session-info').textContent = 'Admin: '+currentUser.name+' ('+currentUser.username+')';
         show('registration'); startRegistrationCamera(); loadRecoveryRequests();
-      }else{
-        $('user-session-info').innerHTML='<b>'+escapeHtml(currentUser.name||currentUser.username)+'</b><br>Username: '+escapeHtml(currentUser.username)+'<br>Role: '+escapeHtml(currentUser.role);
+      } else {
+        $('user-session-info').innerHTML = '<b>'+escapeHtml(currentUser.name||currentUser.username)+'</b><br>Username: '+escapeHtml(currentUser.username)+'<br>Role: '+escapeHtml(currentUser.role);
         show('user-dashboard');
       }
-    }catch(e){alert(e.message||'Login gagal.');}
-  },'Masuk...');
+    }catch(e){ alert(e.message||'Login gagal.'); }
+  }, 'Masuk...');
+}
+
+async function logoutAdmin(){
+  try{ if(authToken) await api('auth_logout'); }catch(e){ console.warn(e); }
+  clearLocalSession(); stopAllCameras();
+  registrationRunning=false; poseLoopRunning=false;
+  goHome();
+}
+
+async function changeMyPassword(){
+  if(!authToken){ alert('Sesi tidak aktif.'); return; }
+  const btn = document.querySelector('button[onclick="changeMyPassword()"]');
+  const current = $('change-current-password').value, next = $('change-new-password').value;
+  if(!current || !next){ alert('Isi password semasa dan password baru.'); return; }
+  await withBusy(btn, async()=>{
+    try{ const r = await api('change_password', { session_token:authToken, current_password:current, new_password:next, device_info:navigator.userAgent }); alert(r.message||'Password berjaya ditukar.'); $('change-current-password').value=''; $('change-new-password').value=''; }
+    catch(e){ alert(e.message||'Gagal menukar password.'); }
+  }, 'Menyimpan...');
+}
+
+async function resetUserPassword(){
+  if(!authToken){ alert('Sesi admin tidak aktif.'); return; }
+  const btn = document.querySelector('button[onclick="resetUserPassword()"]');
+  const target = $('reset-user-id').value.trim(), next = $('reset-new-password').value;
+  if(!target || !next){ alert('Isi User ID dan password baru.'); return; }
+  if(!confirm('Reset password untuk '+target+'?')) return;
+  await withBusy(btn, async()=>{
+    try{ const r = await api('admin_reset_password', { session_token:authToken, target_user_id:target, new_password:next, device_info:navigator.userAgent }); alert(r.message||'Password user berjaya direset.'); $('reset-user-id').value=''; $('reset-new-password').value=''; }
+    catch(e){ alert(e.message||'Gagal reset password.'); }
+  }, 'Mereset password...');
+}
+
+async function loadRecoveryRequests(){
+  if(!authToken || String(currentUser?.role).toLowerCase()!=='admin') return;
+  const box = $('recovery-list'); box.textContent='Memuat...';
+  try{
+    const r = await api('admin_recovery_requests', { session_token:authToken, device_info:navigator.userAgent });
+    box.innerHTML = r.requests.length
+      ? r.requests.map(x=>'<div class="border border-zinc-800 rounded-lg p-2"><b>'+escapeHtml(x.request_id)+'</b> • '+escapeHtml(x.username)+'<br><span class="text-slate-500">'+escapeHtml(x.created_at)+'</span></div>').join('')
+      : 'Tidak ada request pending.';
+  }catch(e){ box.textContent = e.message||'Gagal memuat request.'; }
+}
+async function resetRecoveryRequest(){
+  if(!authToken) return;
+  const btn = $('btn-reset-recovery'), id = $('recovery-request-id').value.trim(), next = $('recovery-new-password').value;
+  if(!id || !next){ alert('Isi Request ID dan password baru.'); return; }
+  if(!confirm('Proses request '+id+'?')) return;
+  await withBusy(btn, async()=>{
+    try{ const r = await api('admin_reset_recovery', { session_token:authToken, request_id:id, new_password:next, device_info:navigator.userAgent }); alert(r.message||'Reset berhasil.'); $('recovery-request-id').value=''; $('recovery-new-password').value=''; loadRecoveryRequests(); }
+    catch(e){ alert(e.message||'Gagal memproses request.'); }
+  }, 'Memproses reset...');
 }
 
 /* ============================================================
  * ENROLLMENT
  * ========================================================== */
-
 async function startRegistrationCamera(){
-  if(!modelsLoaded){alert('Model AI belum siap.');return}
+  if(!modelsLoaded){ alert('Model AI belum siap.'); return; }
   try{
-    registrationRunning=true;
-    regStream=await openCamera('reg-video');
+    registrationRunning = true;
+    regStream = await openCamera('reg-video');
     resetEnrollment();
     runPoseDetectionLoop();
-  }catch(e){alert(e.message||'Kamera gagal dibuka.')}
+  }catch(e){ alert(e.message||'Kamera gagal dibuka.'); }
 }
 
 function resetEnrollment(){
-  currentPose=0;
-  enrolledSamples=[];
-  poseStableStart=0;
-  poseScoreSmoothed=0;
-  poseLocked=false;
-
-  blinkProgress=0;
-  blinkBaselineEar=0.30;
-  blinkFSMState='waiting';
-  blinkClosedTime=0;
-  blinkLastDetected=0;
-
-  $('pose-text').textContent=POSES[0];
-  $('pose-progress').textContent='0 / 6';
-  $('pose-percent').textContent='0%';
-  $('pose-bar').style.width='0%';
-
-  $('blink-counter-wrap').classList.add('hidden');
-  $('blink-counter').textContent = '0 / ' + BLINK_TARGET;
+  currentPose = 0;
+  enrolledSamples = [];
+  poseStableStart = 0;
+  poseScoreSmoothed = 0;
+  poseLocked = false;
+  blinkProgress = 0; blinkFSMState='waiting'; blinkClosedTime=0; blinkLastDetected=0;
+  $('pose-text').textContent = POSES[0];
+  $('pose-progress').textContent = '0 / 6';
+  $('pose-percent').textContent = '0%';
+  $('pose-bar').style.width = '0%';
   $('reg-eye-indicator').classList.add('hidden');
-
   updatePoseUI(0);
   updateStepDots();
   hideLockBadge();
 }
 
 function updateStepDots(){
-  document.querySelectorAll('[data-step]').forEach(function(el){
-    const step = Number(el.dataset.step);
+  document.querySelectorAll('[data-step]').forEach(el => {
+    const s = Number(el.dataset.step);
     el.classList.remove('done','active');
-    if (step < currentPose) el.classList.add('done');
-    else if (step === currentPose) el.classList.add('active');
+    if(s < currentPose) el.classList.add('done');
+    else if(s === currentPose) el.classList.add('active');
   });
 }
 
 async function runPoseDetectionLoop(){
-  if (poseLoopRunning) return;
+  if(poseLoopRunning) return;
   poseLoopRunning = true;
   poseStableStart = 0;
-
   const video = $('reg-video');
 
-  while (registrationRunning && poseLoopRunning && currentPose < 6) {
-    try {
-      if (!video || !video.videoWidth) { await sleep(60); continue; }
-      if (poseLocked) { await sleep(40); continue; }
+  while(registrationRunning && poseLoopRunning && currentPose < 6){
+    try{
+      if(!video || !video.videoWidth){ await sleep(60); continue; }
+      if(poseLocked){ await sleep(40); continue; }
 
-      const detection = await detectFaceFull(video);
-
-      if (!detection) {
+      const results = await detectFaceMediaPipe(video);
+      if(!results){
         updatePoseUI(0, 'Wajah tidak terdeteksi');
         poseStableStart = 0;
         await sleep(80);
         continue;
       }
 
-      const quality = estimateQuality(detection, video);
+      const landmarks = results.faceLandmarks[0];
+      const blendshapes = results.faceBlendshapes;
+      const vw = video.videoWidth, vh = video.videoHeight;
+      const quality = computeQualityFromLandmarks(landmarks, vw, vh);
 
-      if (currentPose === 5) {
-        await handleBlinkStep(detection, quality);
+      if(currentPose === 5){
+        await handleBlinkStep(landmarks, blendshapes, quality, video);
         await sleep(25);
         continue;
       }
 
-      const score = computePoseScore(currentPose, detection.landmarks, quality);
+      const score = computePoseScore(currentPose, landmarks, vw, vh, quality);
       poseScoreSmoothed = poseScoreSmoothed * 0.35 + score * 0.65;
       updatePoseUI(poseScoreSmoothed);
 
-      if (poseScoreSmoothed >= CFG.poseLockThreshold) {
-        if (!poseStableStart) poseStableStart = performance.now();
-        else if (performance.now() - poseStableStart >= CFG.poseStableMs) {
-          await lockAndCaptureCurrentPose(detection, quality);
+      if(poseScoreSmoothed >= CFG.poseLockThreshold){
+        if(!poseStableStart) poseStableStart = performance.now();
+        else if(performance.now() - poseStableStart >= CFG.poseStableMs){
+          await lockAndCapturePose(landmarks, quality, video);
           poseStableStart = 0;
         }
       } else {
         poseStableStart = 0;
       }
-
       await sleep(25);
-    } catch (err) {
+    }catch(err){
       console.error('Pose loop error:', err);
       await sleep(120);
     }
   }
-
   poseLoopRunning = false;
 }
 
-async function handleBlinkStep(detection, quality){
-  const eyes = getEyeState(detection.landmarks);
-  const ear = eyes.ear;
-  const now = performance.now();
+function computePoseScore(poseIndex, landmarks, vw, vh, quality){
+  const pose = estimatePose(landmarks, vw, vh);
+  const blink = getBlinkScore([{ categories: [] }]); // dummy
+  const qFactor = Math.max(0, Math.min(1, quality / CFG.minQuality));
+  let raw = 0;
 
-  if (ear > blinkBaselineEar) {
-    blinkBaselineEar = blinkBaselineEar * 0.9 + ear * 0.1;
+  switch(poseIndex){
+    case 0: {
+      const yawAbs = Math.abs(pose.yaw), pitchAbs = Math.abs(pose.pitch);
+      const yawScore = yawAbs <= CFG.frontYawDead ? 1 :
+        Math.max(0, 1 - (yawAbs - CFG.frontYawDead) / (CFG.frontYawMax - CFG.frontYawDead));
+      const pitchScore = pitchAbs <= CFG.frontPitchDead ? 1 :
+        Math.max(0, 1 - (pitchAbs - CFG.frontPitchDead) / (CFG.frontPitchMax - CFG.frontPitchDead));
+      raw = yawScore * 0.5 + pitchScore * 0.5;
+      break;
+    }
+    case 1: raw = pose.yaw <= 0 ? 0 : Math.min(1, pose.yaw / CFG.yawThreshold); break;
+    case 2: raw = pose.yaw >= 0 ? 0 : Math.min(1, -pose.yaw / CFG.yawThreshold); break;
+    case 3: raw = pose.pitch <= 0 ? 0 : Math.min(1, pose.pitch / CFG.pitchThreshold); break;
+    case 4: raw = pose.pitch >= 0 ? 0 : Math.min(1, -pose.pitch / CFG.pitchThreshold); break;
+    default: raw = 0;
   }
+  return Math.max(0, Math.min(1, raw * qFactor));
+}
 
-  const closeTh  = Math.min(0.28, blinkBaselineEar * 0.75);
-  const reopenTh = Math.max(0.22, blinkBaselineEar * 0.85);
-
+async function handleBlinkStep(landmarks, blendshapes, quality, video){
+  const blink = getBlinkScore(blendshapes);
   const eyeIcon = $('eye-indicator-icon');
-  if (eyeIcon) {
-    if (ear < closeTh) {
-      eyeIcon.classList.add('closed');
-      eyeIcon.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
-    } else {
-      eyeIcon.classList.remove('closed');
-      eyeIcon.innerHTML = '<i class="fa-solid fa-eye"></i>';
-    }
+  if(eyeIcon){
+    if(blink.closed){ eyeIcon.classList.add('closed'); eyeIcon.innerHTML = '<i class="fa-solid fa-eye-slash"></i>'; }
+    else { eyeIcon.classList.remove('closed'); eyeIcon.innerHTML = '<i class="fa-solid fa-eye"></i>'; }
   }
+  const now = performance.now();
+  if(now - blinkLastDetected < 300){ updatePoseUI(blinkProgress / BLINK_TARGET); return; }
 
-  if (now - blinkLastDetected < 300) {
-    const prog = blinkProgress / BLINK_TARGET;
-    updatePoseUI(prog, `Berkedip ${blinkProgress}/${BLINK_TARGET}`);
-    return;
-  }
-
-  if (blinkFSMState === 'waiting') {
-    if (ear < closeTh) {
-      blinkFSMState = 'closed';
-      blinkClosedTime = now;
-    }
-    const closedness = Math.max(0, Math.min(1,
-      (blinkBaselineEar - ear) / Math.max(0.05, blinkBaselineEar - 0.10)));
-    const prog = (blinkProgress + closedness * 0.4) / BLINK_TARGET;
-    updatePoseUI(prog, `Tutup & buka mata (${blinkProgress}/${BLINK_TARGET})`);
+  if(blinkFSMState === 'waiting'){
+    if(blink.closed){ blinkFSMState = 'closed'; blinkClosedTime = now; }
+    const prog = blink.closed ? 0.5 : 0;
+    updatePoseUI((blinkProgress + prog) / BLINK_TARGET, `Tutup & buka mata (${blinkProgress}/${BLINK_TARGET})`);
   } else {
-    if (ear > reopenTh) {
+    if(!blink.closed){
       blinkFSMState = 'waiting';
       blinkLastDetected = now;
       blinkProgress++;
+      // Simpan sample
+      const aligned = alignFaceToCanvas(video, landmarks, 112);
+      const embedding = await getFaceEmbedding(aligned);
+      enrolledSamples.push({ pose: 'blink_' + blinkProgress, descriptor: embedding, quality });
 
-      enrolledSamples.push({
-        pose: 'blink_' + blinkProgress,
-        descriptor: Array.from(detection.descriptor),
-        quality: quality
-      });
-
-      $('blink-counter').textContent = blinkProgress + ' / ' + BLINK_TARGET;
-
-      const prog = blinkProgress / BLINK_TARGET;
-      updatePoseUI(prog, `Kedip ${blinkProgress}/${BLINK_TARGET} ✓`);
-
-      if (blinkProgress < BLINK_TARGET) {
+      updatePoseUI(blinkProgress / BLINK_TARGET, `Kedip ${blinkProgress}/${BLINK_TARGET} ✓`);
+      if(blinkProgress < BLINK_TARGET){
         showLockBadge(`Kedip ${blinkProgress}/${BLINK_TARGET} ✓`);
         setTimeout(hideLockBadge, 400);
       } else {
         showLockBadge('✓ Kedip selesai!');
         currentPose++;
         updateStepDots();
-
         const pct = Math.round(currentPose / 6 * 100);
         $('pose-progress').textContent = currentPose + ' / 6';
         $('pose-percent').textContent = pct + '%';
         $('pose-bar').style.width = pct + '%';
-
         await sleep(700);
         hideLockBadge();
-
-        if (currentPose >= 6) {
-          await finalizeEnrollment();
-        }
+        if(currentPose >= 6) await finalizeEnrollment();
       }
-    } else if (now - blinkClosedTime > 1500) {
+    } else if(now - blinkClosedTime > 1500){
       blinkFSMState = 'waiting';
     } else {
-      const prog = (blinkProgress + 0.5) / BLINK_TARGET;
-      updatePoseUI(prog, `Buka mata kembali (${blinkProgress}/${BLINK_TARGET})`);
+      updatePoseUI((blinkProgress + 0.5) / BLINK_TARGET, `Buka mata kembali (${blinkProgress}/${BLINK_TARGET})`);
     }
   }
 }
@@ -1456,157 +1453,107 @@ function updatePoseUI(score, statusText){
   const hint = $('pose-hint');
   const hintArrow = $('pose-hint-arrow');
   const hintText = $('pose-hint-text');
-
-  fill.style.width = pct + '%';
-  label.textContent = pct + '%';
-  status.textContent = pct + '%';
-
-  if (pct >= CFG.poseLockThreshold * 100) {
-    hint.classList.remove('text-slate-300','text-yellow-400','text-red-400');
-    hint.classList.add('text-emerald-400');
-    status.className = 'font-mono text-emerald-400';
-    fill.classList.add('locked');
-  } else if (pct >= 40) {
-    hint.classList.remove('text-slate-300','text-emerald-400','text-red-400');
-    hint.classList.add('text-yellow-400');
-    status.className = 'font-mono text-yellow-400';
-    fill.classList.remove('locked');
-  } else {
-    hint.classList.remove('text-slate-300','text-emerald-400','text-yellow-400');
-    hint.classList.add('text-red-400');
-    status.className = 'font-mono text-red-400';
-    fill.classList.remove('locked');
-  }
-
+  fill.style.width = pct+'%'; label.textContent = pct+'%'; status.textContent = pct+'%';
+  if(pct >= CFG.poseLockThreshold*100){ hint.classList.remove('text-slate-300','text-yellow-400','text-red-400'); hint.classList.add('text-emerald-400'); status.className='font-mono text-emerald-400'; fill.classList.add('locked'); }
+  else if(pct >= 40){ hint.classList.remove('text-slate-300','text-emerald-400','text-red-400'); hint.classList.add('text-yellow-400'); status.className='font-mono text-yellow-400'; fill.classList.remove('locked'); }
+  else { hint.classList.remove('text-slate-300','text-emerald-400','text-yellow-400'); hint.classList.add('text-red-400'); status.className='font-mono text-red-400'; fill.classList.remove('locked'); }
   const h = POSE_HINTS[currentPose] || POSE_HINTS[0];
-  hintArrow.className = 'pose-arrow ' + (h.cls || '');
+  hintArrow.className = 'pose-arrow '+(h.cls||'');
   hintArrow.innerHTML = h.arrow;
   hintText.textContent = statusText || h.text;
 }
 
-function showLockBadge(text){
-  $('pose-lock-text').textContent = text || 'Terkunci!';
-  $('pose-lock-badge').classList.remove('hidden');
-}
-function hideLockBadge(){
-  $('pose-lock-badge').classList.add('hidden');
-}
+function showLockBadge(text){ $('pose-lock-text').textContent = text||'Terkunci!'; $('pose-lock-badge').classList.remove('hidden'); }
+function hideLockBadge(){ $('pose-lock-badge').classList.add('hidden'); }
 
-async function lockAndCaptureCurrentPose(detection, quality){
+async function lockAndCapturePose(landmarks, quality, video){
   poseLocked = true;
   showLockBadge('✓ Terkunci!');
 
-  enrolledSamples.push({
-    pose: poseName(currentPose),
-    descriptor: Array.from(detection.descriptor),
-    quality: quality
-  });
+  const aligned = alignFaceToCanvas(video, landmarks, 112);
+  const embedding = await getFaceEmbedding(aligned);
+  enrolledSamples.push({ pose: poseName(currentPose), descriptor: embedding, quality });
 
   currentPose++;
   updateStepDots();
-
   const pct = Math.round(currentPose / 6 * 100);
   $('pose-progress').textContent = currentPose + ' / 6';
   $('pose-percent').textContent = pct + '%';
   $('pose-bar').style.width = pct + '%';
 
   await sleep(400);
-
   poseLocked = false;
   poseScoreSmoothed = 0;
   hideLockBadge();
 
-  if (currentPose >= 6) {
-    await finalizeEnrollment();
-    return;
-  }
-
+  if(currentPose >= 6){ await finalizeEnrollment(); return; }
   $('pose-text').textContent = POSES[currentPose];
   updatePoseUI(0);
-
-  if (currentPose === 5) {
-    $('blink-counter-wrap').classList.remove('hidden');
-    $('blink-counter').textContent = '0 / ' + BLINK_TARGET;
-    $('reg-eye-indicator').classList.remove('hidden');
-  } else {
-    $('blink-counter-wrap').classList.add('hidden');
-    $('reg-eye-indicator').classList.add('hidden');
-  }
+  if(currentPose === 5){ $('reg-eye-indicator').classList.remove('hidden'); }
+  else { $('reg-eye-indicator').classList.add('hidden'); }
 }
 
 async function skipCurrentPose(){
-  if (!registrationRunning) return;
-  if (currentPose >= 6) return;
-
-  if (!confirm('Lewati pose ini? Sample akan diambil paksa dari frame saat ini.')) return;
-
+  if(!registrationRunning) return;
+  if(currentPose >= 6) return;
+  if(!confirm('Lewati pose ini?')) return;
   const video = $('reg-video');
-  const detection = await detectFaceFull(video);
-  if (!detection) { alert('Wajah tidak terdeteksi.'); return; }
-
-  const quality = estimateQuality(detection, video);
-  const descriptor = Array.from(detection.descriptor);
-
-  if (currentPose === 5) {
-    for (let i = 0; i < BLINK_TARGET; i++) {
-      enrolledSamples.push({pose:'blink_' + (i+1), descriptor, quality});
+  const results = await detectFaceMediaPipe(video);
+  if(!results){ alert('Wajah tidak terdeteksi.'); return; }
+  const landmarks = results.faceLandmarks[0];
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const quality = computeQualityFromLandmarks(landmarks, vw, vh);
+  if(currentPose === 5){
+    for(let i=0;i<BLINK_TARGET;i++){
+      const aligned = alignFaceToCanvas(video, landmarks, 112);
+      const emb = await getFaceEmbedding(aligned);
+      enrolledSamples.push({ pose:'blink_'+(i+1), descriptor:emb, quality });
     }
     currentPose++;
     updateStepDots();
-    const pct = Math.round(currentPose / 6 * 100);
-    $('pose-progress').textContent = currentPose + ' / 6';
-    $('pose-percent').textContent = pct + '%';
-    $('pose-bar').style.width = pct + '%';
-    showLockBadge('✓ Terkunci!');
-    await sleep(500);
-    hideLockBadge();
-    if (currentPose >= 6) {
-      await finalizeEnrollment();
-    }
+    const pct = Math.round(currentPose/6*100);
+    $('pose-progress').textContent = currentPose+' / 6';
+    $('pose-percent').textContent = pct+'%';
+    $('pose-bar').style.width = pct+'%';
+    showLockBadge('✓ Terkunci!'); await sleep(500); hideLockBadge();
+    if(currentPose >= 6) await finalizeEnrollment();
     return;
   }
-
-  await lockAndCaptureCurrentPose(detection, quality);
+  await lockAndCapturePose(landmarks, quality, video);
 }
 
 async function forceCapturePose(){
-  if (!registrationRunning) return;
-  if (currentPose >= 6) return;
-
+  if(!registrationRunning) return;
+  if(currentPose >= 6) return;
   const video = $('reg-video');
-  const detection = await detectFaceFull(video);
-  if (!detection) { alert('Wajah tidak terdeteksi.'); return; }
-
-  const quality = estimateQuality(detection, video);
-  const descriptor = Array.from(detection.descriptor);
-
-  if (currentPose === 5) {
-    for (let i = 0; i < BLINK_TARGET; i++) {
-      enrolledSamples.push({pose:'blink_' + (i+1), descriptor, quality});
+  const results = await detectFaceMediaPipe(video);
+  if(!results){ alert('Wajah tidak terdeteksi.'); return; }
+  const landmarks = results.faceLandmarks[0];
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const quality = computeQualityFromLandmarks(landmarks, vw, vh);
+  if(currentPose === 5){
+    for(let i=0;i<BLINK_TARGET;i++){
+      const aligned = alignFaceToCanvas(video, landmarks, 112);
+      const emb = await getFaceEmbedding(aligned);
+      enrolledSamples.push({ pose:'blink_'+(i+1), descriptor:emb, quality });
     }
     currentPose++;
     updateStepDots();
-    const pct = Math.round(currentPose / 6 * 100);
-    $('pose-progress').textContent = currentPose + ' / 6';
-    $('pose-percent').textContent = pct + '%';
-    $('pose-bar').style.width = pct + '%';
-    showLockBadge('✓ Terkunci!');
-    await sleep(500);
-    hideLockBadge();
-    if (currentPose >= 6) {
-      await finalizeEnrollment();
-    }
+    const pct = Math.round(currentPose/6*100);
+    $('pose-progress').textContent = currentPose+' / 6';
+    $('pose-percent').textContent = pct+'%';
+    $('pose-bar').style.width = pct+'%';
+    showLockBadge('✓ Terkunci!'); await sleep(500); hideLockBadge();
+    if(currentPose >= 6) await finalizeEnrollment();
     return;
   }
-
-  await lockAndCaptureCurrentPose(detection, quality);
+  await lockAndCapturePose(landmarks, quality, video);
 }
 
 async function finalizeEnrollment(){
   poseLoopRunning = false;
   registrationRunning = false;
-
-  try {
+  try{
     const user = await api('register_user', {
       username: $('reg-username').value.trim(),
       password: $('reg-password').value,
@@ -1617,173 +1564,106 @@ async function finalizeEnrollment(){
       role: $('reg-role').value,
       device_info: navigator.userAgent
     });
-
     await api('enroll_biometric', {
       user_id: user.user.user_id,
       descriptors: enrolledSamples,
       quality_score: averageQuality(enrolledSamples),
-      liveness_method: 'active-challenge',
+      liveness_method: 'mediapipe-onnx',
       device_info: navigator.userAgent
     });
-
     await Swal.fire({
-      icon: 'success',
-      title: 'Pendaftaran Berhasil',
-      background: '#1c1c1e',
-      color: '#fff',
-      confirmButtonColor: '#32de84',
-      timer: 2500,
-      timerProgressBar: true,
-      html: '<div style="text-align:left;line-height:1.8">' +
-            '<b>Username:</b> ' + escapeHtml(user.user.username) + '<br>' +
-            '<b>Nama:</b> ' + escapeHtml(user.user.name) + '<br>' +
-            '<b>Role:</b> ' + escapeHtml(user.user.role) + '<br>' +
-            '<b>Sample:</b> ' + enrolledSamples.length + ' pose' +
-            '</div>'
+      icon:'success', title:'Pendaftaran Berhasil', background:'#1c1c1e', color:'#fff',
+      confirmButtonColor:'#32de84', timer:2500, timerProgressBar:true,
+      html:'<div style="text-align:left;line-height:1.8">' +
+        '<b>Username:</b> '+escapeHtml(user.user.username)+'<br>' +
+        '<b>Nama:</b> '+escapeHtml(user.user.name)+'<br>' +
+        '<b>Role:</b> '+escapeHtml(user.user.role)+'<br>' +
+        '<b>Sample:</b> '+enrolledSamples.length+' pose</div>'
     });
-
-    $('reg-username').value='';
-    $('reg-password').value='';
-    $('reg-ic').value='';
-    $('reg-name').value='';
-    $('reg-phone').value='';
-    $('reg-phone2').value='';
-
+    $('reg-username').value=''; $('reg-password').value=''; $('reg-ic').value='';
+    $('reg-name').value=''; $('reg-phone').value=''; $('reg-phone2').value='';
     goHome();
-  } catch (e) {
-    alert(e.message || 'Pendaftaran gagal.');
+  }catch(e){
+    alert(e.message||'Pendaftaran gagal.');
     registrationRunning = true;
     resetEnrollment();
     runPoseDetectionLoop();
   }
 }
 
-function poseName(i){
-  return ['front','left','right','down','up','blink'][i];
-}
-
+function poseName(i){ return ['front','left','right','down','up','blink'][i]; }
 function averageQuality(samples){
   if(!samples || !samples.length) return CFG.minQuality;
   let sum=0, count=0;
-  samples.forEach(function(s){
-    if(s && typeof s.quality==='number' && isFinite(s.quality)){ sum+=s.quality; count++; }
-  });
+  samples.forEach(s => { if(s && typeof s.quality === 'number' && isFinite(s.quality)){ sum+=s.quality; count++; } });
   return count ? (sum/count) : CFG.minQuality;
-}
-
-async function logoutAdmin(){
-  try{ if(authToken) await api('auth_logout'); }catch(e){ console.warn(e); }
-  clearLocalSession();
-  stopAllCameras();
-  registrationRunning=false;
-  poseLoopRunning=false;
-  goHome();
-}
-
-async function changeMyPassword(){
-  if(!authToken){alert('Sesi tidak aktif.');return;}
-  const btn=document.querySelector('button[onclick="changeMyPassword()"]');
-  const current=$('change-current-password').value,next=$('change-new-password').value;
-  if(!current||!next){alert('Isi password semasa dan password baru.');return;}
-  await withBusy(btn,async()=>{try{const r=await api('change_password',{session_token:authToken,current_password:current,new_password:next,device_info:navigator.userAgent});alert(r.message||'Password berjaya ditukar.');$('change-current-password').value='';$('change-new-password').value='';}catch(e){alert(e.message||'Gagal menukar password.');}},'Menyimpan...');
-}
-async function resetUserPassword(){
-  if(!authToken){alert('Sesi admin tidak aktif.');return;}
-  const btn=document.querySelector('button[onclick="resetUserPassword()"]');
-  const target=$('reset-user-id').value.trim(),next=$('reset-new-password').value;
-  if(!target||!next){alert('Isi User ID dan password baru.');return;}
-  if(!confirm('Reset password untuk '+target+'? Semua session user tersebut akan dibatalkan.'))return;
-  await withBusy(btn,async()=>{try{const r=await api('admin_reset_password',{session_token:authToken,target_user_id:target,new_password:next,device_info:navigator.userAgent});alert(r.message||'Password user berjaya direset.');$('reset-user-id').value='';$('reset-new-password').value='';}catch(e){alert(e.message||'Gagal reset password.');}},'Mereset password...');
-}
-async function loadRecoveryRequests(){
-  if(!authToken||String(currentUser?.role).toLowerCase()!=='admin')return;
-  const box=$('recovery-list'); box.textContent='Memuat...';
-  try{const r=await api('admin_recovery_requests',{session_token:authToken,device_info:navigator.userAgent});
-    box.innerHTML=r.requests.length?r.requests.map(x=>'<div class="border border-zinc-800 rounded-lg p-2"><b>'+escapeHtml(x.request_id)+'</b> • '+escapeHtml(x.username)+'<br><span class="text-slate-500">'+escapeHtml(x.created_at)+'</span></div>').join(''):'Tidak ada request pending.';
-  }catch(e){box.textContent=e.message||'Gagal memuat request.';}
-}
-async function resetRecoveryRequest(){
-  if(!authToken)return;
-  const btn=$('btn-reset-recovery'), id=$('recovery-request-id').value.trim(), next=$('recovery-new-password').value;
-  if(!id||!next){alert('Isi Request ID dan password baru.');return;}
-  if(!confirm('Proses request '+id+' dan reset password user?'))return;
-  await withBusy(btn,async()=>{try{const r=await api('admin_reset_recovery',{session_token:authToken,request_id:id,new_password:next,device_info:navigator.userAgent});alert(r.message||'Reset berhasil.');$('recovery-request-id').value='';$('recovery-new-password').value='';loadRecoveryRequests();}catch(e){alert(e.message||'Gagal memproses request.');}},'Memproses reset...');
 }
 
 /* ============================================================
  * UPDATE DOCUMENT
  * ========================================================== */
-
 async function startUpdateScan(){
-  const btn=document.querySelector('button[onclick="startUpdateScan()"]');
-  if(!modelsLoaded){alert('Model AI belum siap.');return}
-  setBusy(btn,true,'Memulai kamera...');
+  const btn = document.querySelector('button[onclick="startUpdateScan()"]');
+  if(!modelsLoaded){ alert('Model AI belum siap.'); return; }
+  setBusy(btn, true, 'Memulai kamera...');
   show('update');
   $('update-start').classList.add('hidden');
   $('update-scanner').classList.remove('hidden');
-
   try{
-    updateScannerRunning=true;
-    updateStream=await openCamera('update-video');
-    faceSession=await newFaceSession();
-    const result=await verifyCurrentFace('update-video','update-status','update');
-
-    stopStream(updateStream);updateStream=null;
-    updateScannerRunning=false;
-
-    const data=await api('search_verified_user',{
-      face_session_id:result.face_session_id,
-      verification_token:result.verification_token
+    updateScannerRunning = true;
+    updateStream = await openCamera('update-video');
+    faceSession = await newFaceSession();
+    const result = await verifyCurrentFace('update-video', 'update-status', 'update');
+    stopStream(updateStream); updateStream=null;
+    updateScannerRunning = false;
+    const data = await api('search_verified_user', {
+      face_session_id: result.face_session_id,
+      verification_token: result.verification_token
     });
-
-    currentUpdateUser=data.data;
-    $('up-ic').textContent=currentUpdateUser.ic;
-    $('up-name').textContent=currentUpdateUser.name;
-    $('up-address').textContent=currentUpdateUser.alamat||'-';
-    $('up-phone').value=currentUpdateUser.noTelpon==='-'?'':currentUpdateUser.noTelpon;
-    $('up-phone2').value=currentUpdateUser.noTelpon2==='-'?'':currentUpdateUser.noTelpon2;
-
+    currentUpdateUser = data.data;
+    $('up-ic').textContent = currentUpdateUser.ic;
+    $('up-name').textContent = currentUpdateUser.name;
+    $('up-address').textContent = currentUpdateUser.alamat || '-';
+    $('up-phone').value = currentUpdateUser.noTelpon === '-' ? '' : currentUpdateUser.noTelpon;
+    $('up-phone2').value = currentUpdateUser.noTelpon2 === '-' ? '' : currentUpdateUser.noTelpon2;
     $('update-scanner').classList.add('hidden');
     $('update-form').classList.remove('hidden');
   }catch(e){
-    stopStream(updateStream);updateStream=null;
-    updateScannerRunning=false;
+    stopStream(updateStream); updateStream=null;
+    updateScannerRunning = false;
     alert(e.message||'Verifikasi gagal.');
     goHome();
-  } finally { setBusy(btn,false); }
+  } finally { setBusy(btn, false); }
 }
 
 async function saveUpdate(){
-  const btn=document.querySelector('button[onclick="saveUpdate()"]');
-  if(!currentUpdateUser || !faceSession || !faceVerification)return;
-
-  setBusy(btn,true,'Menyimpan...');
+  const btn = document.querySelector('button[onclick="saveUpdate()"]');
+  if(!currentUpdateUser || !faceSession || !faceVerification) return;
+  setBusy(btn, true, 'Menyimpan...');
   try{
-    const f1=await optionalFile($('up-file1').files[0]);
-    const f2=await optionalFile($('up-file2').files[0]);
-
-    await api('update_document_data',{
-      face_session_id:faceVerification.face_session_id,
-      verification_token:faceVerification.verification_token,
-      noTelpon:$('up-phone').value.trim(),
-      noTelpon2:$('up-phone2').value.trim(),
-      file1:f1,
-      file2:f2,
-      device_info:navigator.userAgent
+    const f1 = await optionalFile($('up-file1').files[0]);
+    const f2 = await optionalFile($('up-file2').files[0]);
+    await api('update_document_data', {
+      face_session_id: faceVerification.face_session_id,
+      verification_token: faceVerification.verification_token,
+      noTelpon: $('up-phone').value.trim(),
+      noTelpon2: $('up-phone2').value.trim(),
+      file1: f1, file2: f2,
+      device_info: navigator.userAgent
     });
-
     alert('Perubahan berhasil disimpan.');
     goHome();
-  }catch(e){alert(e.message||'Update gagal.')} finally { setBusy(btn,false); }
+  }catch(e){ alert(e.message||'Update gagal.'); }
+  finally { setBusy(btn, false); }
 }
 
 function optionalFile(file){
-  if(!file)return Promise.resolve(null);
-  return new Promise((resolve,reject)=>{
-    if(file.size>5*1024*1024){reject(new Error('File terlalu besar.'));return}
-    const reader=new FileReader();
-    reader.onload=()=>resolve({base64:String(reader.result).split(',')[1],mimeType:file.type});
-    reader.onerror=reject;
+  if(!file) return Promise.resolve(null);
+  return new Promise((resolve, reject) => {
+    if(file.size > 5*1024*1024){ reject(new Error('File terlalu besar.')); return; }
+    const reader = new FileReader();
+    reader.onload = () => resolve({ base64: String(reader.result).split(',')[1], mimeType: file.type });
+    reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
@@ -1791,16 +1671,20 @@ function optionalFile(file){
 /* ============================================================
  * HELPERS
  * ========================================================== */
-
 function escapeHtml(s){
-  return String(s??'').replace(/[&<>"']/g,c=>({
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[c]));
 }
 
-window.addEventListener('beforeunload',()=>stopAllCameras());
+window.addEventListener('beforeunload', () => stopAllCameras());
 
-setSessionBadge();
+window.addEventListener('load', async () => {
+  await loadServerConfig();
+  await restoreSession();
+  await loadModels();
+  setSessionBadge();
+});
 </script>
 </body>
 </html>
