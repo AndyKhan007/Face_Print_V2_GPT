@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V3.4.1 — MediaPipe + ONNX</title>
+<title>FacePrint V3.4.2 — MediaPipe + ONNX</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,94 +80,20 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 @keyframes checkPop{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
 #action-loading{transition:opacity .25s ease-out}
 #action-loading.fade-out{opacity:0}
-
-/* ============================================================
-   LIVENESS LOCK & INTRO OVERLAYS (V3.4.1)
-   ============================================================ */
-.lock-prominent {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.75);
-  border-radius: 16px;
-  z-index: 10;
-  animation: lockFadeIn 0.3s ease-out;
-}
-.lock-prominent-inner {
-  text-align: center;
-  animation: lockPopIn 0.5s ease-out;
-}
-.lock-prominent-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: rgba(50, 222, 132, 0.2);
-  border: 4px solid #32de84;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  color: #32de84;
-  font-size: 2.5rem;
-  box-shadow: 0 0 40px rgba(50, 222, 132, 0.6);
-  animation: lockIconPulse 0.6s ease-in-out infinite alternate;
-}
-.lock-prominent-title {
-  color: #32de84;
-  font-weight: 800;
-  font-size: 1.5rem;
-  letter-spacing: 1px;
-}
-.lock-prominent-subtitle {
-  color: #94a3b8;
-  font-size: 0.85rem;
-  margin-top: 6px;
-}
-@keyframes lockFadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes lockPopIn {
-  0% { transform: scale(0.6); opacity: 0; }
-  60% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-@keyframes lockIconPulse {
-  from { box-shadow: 0 0 40px rgba(50, 222, 132, 0.6); }
-  to { box-shadow: 0 0 70px rgba(50, 222, 132, 0.9); }
-}
-.intro-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.65);
-  border-radius: 16px;
-  z-index: 9;
-  animation: lockFadeIn 0.3s ease-out;
-}
-.intro-inner {
-  text-align: center;
-  animation: lockPopIn 0.4s ease-out;
-}
-.intro-icon {
-  font-size: 3rem;
-  color: #facc15;
-  margin-bottom: 12px;
-  animation: blinkPulse 1s ease-in-out infinite;
-}
-.intro-title {
-  color: #facc15;
-  font-weight: 800;
-  font-size: 1.3rem;
-}
-.intro-countdown {
-  color: #fff;
-  font-size: 2.5rem;
-  font-weight: 900;
-  margin-top: 8px;
-  font-variant-numeric: tabular-nums;
-}
+#action-loading.dismissible{cursor:pointer}
+.lock-prominent{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.75);border-radius:16px;z-index:10;animation:lockFadeIn .3s ease-out;}
+.lock-prominent-inner{text-align:center;animation:lockPopIn .5s ease-out;}
+.lock-prominent-icon{width:80px;height:80px;border-radius:50%;background:rgba(50,222,132,.2);border:4px solid #32de84;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#32de84;font-size:2.5rem;box-shadow:0 0 40px rgba(50,222,132,.6);animation:lockIconPulse .6s ease-in-out infinite alternate;}
+.lock-prominent-title{color:#32de84;font-weight:800;font-size:1.5rem;letter-spacing:1px;}
+.lock-prominent-subtitle{color:#94a3b8;font-size:.85rem;margin-top:6px;}
+@keyframes lockFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes lockPopIn{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.1);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes lockIconPulse{from{box-shadow:0 0 40px rgba(50,222,132,.6)}to{box-shadow:0 0 70px rgba(50,222,132,.9)}}
+.intro-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);border-radius:16px;z-index:9;animation:lockFadeIn .3s ease-out;}
+.intro-inner{text-align:center;animation:lockPopIn .4s ease-out;}
+.intro-icon{font-size:3rem;color:#facc15;margin-bottom:12px;animation:blinkPulse 1s ease-in-out infinite;}
+.intro-title{color:#facc15;font-weight:800;font-size:1.3rem;}
+.intro-countdown{color:#fff;font-size:2.5rem;font-weight:900;margin-top:8px;font-variant-numeric:tabular-nums;}
 </style>
 </head>
 
@@ -224,12 +150,15 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </div>
 
-<!-- ACTION LOADING OVERLAY -->
+<!-- ACTION LOADING OVERLAY (dismissible untuk success/error) -->
 <div id="action-loading" class="hidden fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
   <div class="card p-8 max-w-sm w-full text-center">
     <div id="action-loading-icon-wrap" class="relative mx-auto w-20 h-20 mb-4"></div>
     <div id="action-loading-title" class="font-bold text-lg">Memproses...</div>
     <div id="action-loading-msg" class="text-sm text-slate-400 mt-2">Mohon tunggu</div>
+    <div id="action-loading-hint" class="text-xs text-slate-500 mt-4 hidden">
+      <i class="fa-solid fa-hand-pointer mr-1"></i>Klik di mana saja untuk menutup
+    </div>
   </div>
 </div>
 
@@ -251,7 +180,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V3.4.1 — MediaPipe + ONNX</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V3.4.2 — MediaPipe + ONNX</p>
   </div>
   <div class="space-y-3">
     <button id="btn-start-in" class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
@@ -275,24 +204,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <h2 id="scanner-title" class="font-bold text-lg">FacePrint In</h2>
     <button onclick="cancelScanAndHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
   </div>
-
   <div class="flex items-center gap-2">
-    <div class="step-box active" id="scan-step-box-1">
-      <div class="step-num">1</div>
-      <span>Persiapan</span>
-    </div>
+    <div class="step-box active" id="scan-step-box-1"><div class="step-num">1</div><span>Persiapan</span></div>
     <div class="step-connector" id="scan-step-connector-1"></div>
-    <div class="step-box" id="scan-step-box-2">
-      <div class="step-num">2</div>
-      <span>Verifikasi</span>
-    </div>
+    <div class="step-box" id="scan-step-box-2"><div class="step-num">2</div><span>Verifikasi</span></div>
     <div class="step-connector" id="scan-step-connector-2"></div>
-    <div class="step-box" id="scan-step-box-3">
-      <div class="step-num">3</div>
-      <span>Konfirmasi</span>
-    </div>
+    <div class="step-box" id="scan-step-box-3"><div class="step-num">3</div><span>Konfirmasi</span></div>
   </div>
-
   <div id="scan-step-1" class="space-y-4">
     <div class="text-center py-6">
       <i class="fa-solid fa-camera-retro text-6xl text-emerald-400 mb-4"></i>
@@ -319,7 +237,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-play mr-2"></i>Mulai Verifikasi Wajah
     </button>
   </div>
-
   <div id="scan-step-2" class="hidden space-y-4">
     <div class="video-wrap">
       <video id="scan-video" autoplay playsinline muted></video>
@@ -357,7 +274,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <div class="pose-step-dot" data-scan-step="1"></div>
     </div>
   </div>
-
   <div id="scan-step-3" class="hidden space-y-4">
     <div class="bg-emerald-500/10 border border-emerald-500/40 rounded-xl p-4 text-center">
       <i class="fa-solid fa-circle-check text-5xl text-emerald-400 mb-2"></i>
@@ -420,7 +336,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <h2 class="font-bold">Pendaftaran FacePrint V3</h2>
     <button onclick="goHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
   </div>
-
   <details class="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
     <summary class="cursor-pointer font-semibold text-sm text-slate-300">
       <i class="fa-solid fa-user-shield mr-2 text-emerald-400"></i>Sesi Administrator & Reset Password
@@ -454,24 +369,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       </div>
     </div>
   </details>
-
   <div class="flex items-center gap-2">
-    <div class="step-box active" id="step-box-1">
-      <div class="step-num">1</div>
-      <span>Isi Data</span>
-    </div>
+    <div class="step-box active" id="step-box-1"><div class="step-num">1</div><span>Isi Data</span></div>
     <div class="step-connector" id="step-connector-1"></div>
-    <div class="step-box" id="step-box-2">
-      <div class="step-num">2</div>
-      <span>Rekam Wajah</span>
-    </div>
+    <div class="step-box" id="step-box-2"><div class="step-num">2</div><span>Rekam Wajah</span></div>
     <div class="step-connector" id="step-connector-2"></div>
-    <div class="step-box" id="step-box-3">
-      <div class="step-num">3</div>
-      <span>Kirim</span>
-    </div>
+    <div class="step-box" id="step-box-3"><div class="step-num">3</div><span>Kirim</span></div>
   </div>
-
   <div id="reg-step-1" class="space-y-4">
     <div class="grid md:grid-cols-2 gap-3">
       <input id="reg-username" class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3" placeholder="Username">
@@ -491,7 +395,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       Isi semua field di atas, lalu klik <b class="text-emerald-400">Face Register</b> untuk mulai merekam wajah.
     </div>
   </div>
-
   <div id="reg-step-2" class="hidden space-y-4">
     <div class="video-wrap">
       <video id="reg-video" autoplay playsinline muted></video>
@@ -547,7 +450,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       </button>
     </div>
   </div>
-
   <div id="reg-step-3" class="hidden space-y-4">
     <div class="bg-emerald-500/10 border border-emerald-500/40 rounded-xl p-4 text-center">
       <i class="fa-solid fa-circle-check text-4xl text-emerald-400 mb-2"></i>
@@ -578,24 +480,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
     <h2 class="font-bold">Update Dokumen & Data</h2>
     <button onclick="cancelUpdateAndHome()"><i class="fa-solid fa-xmark text-slate-400 text-xl"></i></button>
   </div>
-
   <div class="flex items-center gap-2">
-    <div class="step-box active" id="update-step-box-1">
-      <div class="step-num">1</div>
-      <span>Persiapan</span>
-    </div>
+    <div class="step-box active" id="update-step-box-1"><div class="step-num">1</div><span>Persiapan</span></div>
     <div class="step-connector" id="update-step-connector-1"></div>
-    <div class="step-box" id="update-step-box-2">
-      <div class="step-num">2</div>
-      <span>Verifikasi</span>
-    </div>
+    <div class="step-box" id="update-step-box-2"><div class="step-num">2</div><span>Verifikasi</span></div>
     <div class="step-connector" id="update-step-connector-2"></div>
-    <div class="step-box" id="update-step-box-3">
-      <div class="step-num">3</div>
-      <span>Edit & Simpan</span>
-    </div>
+    <div class="step-box" id="update-step-box-3"><div class="step-num">3</div><span>Edit & Simpan</span></div>
   </div>
-
   <div id="update-step-1" class="space-y-4">
     <div class="text-center py-6">
       <i class="fa-solid fa-user-pen text-6xl text-emerald-400 mb-4"></i>
@@ -623,7 +514,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-play mr-2"></i>Mulai Verifikasi Wajah
     </button>
   </div>
-
   <div id="update-step-2" class="hidden space-y-4">
     <div class="video-wrap">
       <video id="update-video" autoplay playsinline muted></video>
@@ -657,7 +547,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <div class="pose-step-dot" data-update-step="1"></div>
     </div>
   </div>
-
   <div id="update-step-3" class="hidden space-y-4">
     <div class="bg-emerald-500/10 border border-emerald-500/40 rounded-xl p-4 text-center">
       <i class="fa-solid fa-circle-check text-4xl text-emerald-400 mb-2"></i>
@@ -769,27 +658,103 @@ function goHome(){
   show('home');
 }
 function showAdminLogin(){show('admin-login')}
+function updateClock(){
+  const d=new Date();
+  $('clock').textContent=d.toLocaleTimeString('id-ID')+' | '+d.toLocaleDateString('id-ID');
+}
+setInterval(updateClock,1000);updateClock();
+
+/* ============================================================
+ * RESET UI — Bersihkan sisa sesi sebelumnya (V3.4.2)
+ * ========================================================== */
+function resetScannerUI(){
+  const fill = $('scan-meter-fill');
+  const label = $('scan-meter-label');
+  const status = $('scan-score-status');
+  const hint = $('scan-hint');
+  const hintArrow = $('scan-hint-arrow');
+  const hintText = $('scan-hint-text');
+  if(fill){ fill.style.width = '0%'; fill.classList.remove('locked'); }
+  if(label) label.textContent = '0%';
+  if(status){ status.textContent = '0%'; status.className = 'font-mono text-slate-400'; }
+  if(hint){ hint.classList.remove('text-yellow-400','text-red-400'); hint.classList.add('text-emerald-400'); }
+  if(hintArrow){ hintArrow.className = 'pose-arrow'; hintArrow.innerHTML = ''; }
+  if(hintText) hintText.textContent = 'Bersiap...';
+
+  const cb = $('challenge-box');
+  if(cb) cb.classList.add('hidden');
+  const ct = $('challenge-text');
+  if(ct) ct.textContent = '';
+
+  const lb = $('scan-lock-badge');
+  if(lb) lb.classList.add('hidden');
+
+  document.querySelectorAll('[data-scan-step]').forEach(el => {
+    el.classList.remove('done','active');
+    el.style.display = '';
+  });
+  const firstDot = document.querySelector('[data-scan-step="0"]');
+  if(firstDot) firstDot.classList.add('active');
+
+  const intro = document.getElementById('liveness-intro-overlay');
+  if(intro) intro.remove();
+  const lock = document.getElementById('liveness-lock-overlay');
+  if(lock) lock.remove();
+
+  faceSession = null;
+  faceVerification = null;
+}
+
+function resetUpdateUI(){
+  const fill = $('update-meter-fill');
+  const label = $('update-meter-label');
+  const status = $('update-score-status');
+  const hint = $('update-hint');
+  const hintArrow = $('update-hint-arrow');
+  const hintText = $('update-hint-text');
+  if(fill){ fill.style.width = '0%'; fill.classList.remove('locked'); }
+  if(label) label.textContent = '0%';
+  if(status){ status.textContent = '0%'; status.className = 'font-mono text-slate-400'; }
+  if(hint){ hint.classList.remove('text-yellow-400','text-red-400'); hint.classList.add('text-emerald-400'); }
+  if(hintArrow){ hintArrow.className = 'pose-arrow'; hintArrow.innerHTML = ''; }
+  if(hintText) hintText.textContent = 'Bersiap...';
+
+  const lb = $('update-lock-badge');
+  if(lb) lb.classList.add('hidden');
+
+  document.querySelectorAll('[data-update-step]').forEach(el => {
+    el.classList.remove('done','active');
+  });
+  const firstDot = document.querySelector('[data-update-step="0"]');
+  if(firstDot) firstDot.classList.add('active');
+
+  const intro = document.getElementById('liveness-intro-overlay');
+  if(intro) intro.remove();
+  const lock = document.getElementById('liveness-lock-overlay');
+  if(lock) lock.remove();
+
+  faceSession = null;
+  faceVerification = null;
+  currentUpdateUser = null;
+
+  const upIc = $('up-ic'); if(upIc) upIc.textContent = '-';
+  const upName = $('up-name'); if(upName) upName.textContent = '-';
+  const upAddr = $('up-address'); if(upAddr) upAddr.textContent = '-';
+  const upPhone = $('up-phone'); if(upPhone) upPhone.value = '';
+  const upPhone2 = $('up-phone2'); if(upPhone2) upPhone2.value = '';
+  const upFile1 = $('up-file1'); if(upFile1) upFile1.value = '';
+  const upFile2 = $('up-file2'); if(upFile2) upFile2.value = '';
+}
+
 function showUpdate(){
-  faceSession = null; faceVerification = null; currentUpdateUser = null;
+  resetUpdateUI();
   updateScannerRunning = false;
   show('update');
   $('update-step-1').classList.remove('hidden');
   $('update-step-2').classList.add('hidden');
   $('update-step-3').classList.add('hidden');
   setUpdateStep(1);
-  $('up-ic').textContent = '-';
-  $('up-name').textContent = '-';
-  $('up-address').textContent = '-';
-  $('up-phone').value = '';
-  $('up-phone2').value = '';
-  $('up-file1').value = '';
-  $('up-file2').value = '';
 }
-function updateClock(){
-  const d=new Date();
-  $('clock').textContent=d.toLocaleTimeString('id-ID')+' | '+d.toLocaleDateString('id-ID');
-}
-setInterval(updateClock,1000);updateClock();
 
 function setSessionBadge(){
   if(authToken && currentUser){
@@ -802,24 +767,41 @@ function setSessionBadge(){
 }
 
 /* ============================================================
- * LOADING OVERLAY
+ * ACTION LOADING OVERLAY (dismissible)
  * ========================================================== */
 function showLoading(title, msg, iconType) {
   const el = $('action-loading');
   const wrap = $('action-loading-icon-wrap');
+  const hint = $('action-loading-hint');
   $('action-loading-title').textContent = title || 'Memproses...';
   $('action-loading-msg').textContent = msg || 'Mohon tunggu';
+
+  el.onclick = null;
+  el.classList.remove('dismissible');
+  hint.classList.add('hidden');
+  el.style.cursor = 'default';
+
   if (iconType === 'success') {
     wrap.innerHTML = '<div class="absolute inset-0 rounded-full bg-emerald-500/20 flex items-center justify-center"><i class="fa-solid fa-check text-emerald-400 text-4xl"></i></div>';
+    el.onclick = () => hideLoading();
+    el.classList.add('dismissible');
+    hint.classList.remove('hidden');
   } else if (iconType === 'error') {
     wrap.innerHTML = '<div class="absolute inset-0 rounded-full bg-red-500/20 flex items-center justify-center"><i class="fa-solid fa-xmark text-red-400 text-4xl"></i></div>';
+    el.onclick = () => hideLoading();
+    el.classList.add('dismissible');
+    hint.classList.remove('hidden');
   } else {
     wrap.innerHTML = '<div class="absolute inset-0 rounded-full border-4 border-emerald-400/20"></div><div class="absolute inset-0 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin"></div><i class="fa-solid fa-fingerprint text-emerald-400 absolute inset-0 flex items-center justify-center text-2xl"></i>';
   }
   el.classList.remove('hidden', 'fade-out');
 }
+
 function hideLoading() {
   const el = $('action-loading');
+  if(!el) return;
+  el.onclick = null;
+  el.classList.remove('dismissible');
   el.classList.add('fade-out');
   setTimeout(() => el.classList.add('hidden'), 250);
 }
@@ -1006,7 +988,7 @@ async function loadServerConfig(){
        Number.isFinite(Number(c.office_lat)) && Number.isFinite(Number(c.office_lng))){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
-    const v = c.app_version || '3.4.1';
+    const v = c.app_version || '3.4.2';
     const subtitle = document.querySelector('#home h1 + p');
     if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — MediaPipe + ONNX';
     console.log('[CFG] Server config loaded');
@@ -1206,7 +1188,7 @@ function computeQualityFromLandmarks(landmarks, vw, vh){
 }
 
 /* ============================================================
- * POSES
+ * POSES & HINTS
  * ========================================================== */
 const POSES = [
   'Langkah 1/8: Hadap depan','Langkah 2/8: Menoleh ke kiri',
@@ -1284,12 +1266,12 @@ function startFaceRegistration(){
   const ic = $('reg-ic').value.trim();
   const name = $('reg-name').value.trim();
   if(!username || !password || !ic || !name){
-    Swal.fire({icon:'warning', title:'Data belum lengkap', text:'Username, password, IC, dan nama wajib diisi.', background:'#1c1c1e', color:'#fff'});
+    Swal.fire({icon:'warning', title:'Data belum lengkap', text:'Username, password, IC, dan nama wajib diisi.', background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true});
     return;
   }
-  if(username.length < 3){ Swal.fire({icon:'warning', title:'Username terlalu pendek', text:'Minimal 3 karakter.', background:'#1c1c1e', color:'#fff'}); return; }
-  if(password.length < 12){ Swal.fire({icon:'warning', title:'Password terlalu pendek', text:'Minimal 12 karakter.', background:'#1c1c1e', color:'#fff'}); return; }
-  if(!modelsLoaded){ Swal.fire({icon:'error', title:'Model AI belum siap', text:'Tunggu beberapa detik lagi.', background:'#1c1c1e', color:'#fff'}); return; }
+  if(username.length < 3){ Swal.fire({icon:'warning', title:'Username terlalu pendek', text:'Minimal 3 karakter.', background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true}); return; }
+  if(password.length < 12){ Swal.fire({icon:'warning', title:'Password terlalu pendek', text:'Minimal 12 karakter.', background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true}); return; }
+  if(!modelsLoaded){ Swal.fire({icon:'error', title:'Model AI belum siap', text:'Tunggu beberapa detik lagi.', background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true}); return; }
   $('reg-step-1').classList.add('hidden');
   $('reg-step-2').classList.remove('hidden');
   $('reg-step-3').classList.add('hidden');
@@ -1306,7 +1288,7 @@ async function startRegistrationCamera(){
     resetEnrollmentUI();
     runPoseDetectionLoop();
   }catch(e){
-    Swal.fire({icon:'error', title:'Kamera gagal dibuka', text:e.message, background:'#1c1c1e', color:'#fff'});
+    Swal.fire({icon:'error', title:'Kamera gagal dibuka', text:e.message, background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true});
     backToStep1();
   }
 }
@@ -1523,7 +1505,7 @@ async function forceCapturePose(){
   if(currentPose >= 8) return;
   const video = $('reg-video');
   const results = await detectFaceMediaPipe(video);
-  if(!results){ Swal.fire({icon:'warning', title:'Wajah tidak terdeteksi', background:'#1c1c1e', color:'#fff'}); return; }
+  if(!results){ Swal.fire({icon:'warning', title:'Wajah tidak terdeteksi', background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true}); return; }
   const landmarks = results.faceLandmarks[0];
   const vw = video.videoWidth, vh = video.videoHeight;
   const quality = computeQualityFromLandmarks(landmarks, vw, vh);
@@ -1567,11 +1549,11 @@ function finishFaceCapture(){
 }
 async function submitRegistration(){
   if(!faceCaptureDone || !enrolledSamples.length){
-    Swal.fire({icon:'warning', title:'Data wajah belum siap', background:'#1c1c1e', color:'#fff'});
+    Swal.fire({icon:'warning', title:'Data wajah belum siap', background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true});
     return;
   }
   if(enrolledSamples.length < ENROLL_MIN){
-    Swal.fire({icon:'warning', title:'Sample kurang', text:'Minimal ' + ENROLL_MIN + ' sample. Sekarang: ' + enrolledSamples.length, background:'#1c1c1e', color:'#fff'});
+    Swal.fire({icon:'warning', title:'Sample kurang', text:'Minimal ' + ENROLL_MIN + ' sample. Sekarang: ' + enrolledSamples.length, background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true});
     return;
   }
   const btn = $('btn-submit-registration');
@@ -1602,7 +1584,9 @@ async function submitRegistration(){
     await Swal.fire({
       icon:'success', title:'Pendaftaran Berhasil',
       background:'#1c1c1e', color:'#fff',
-      confirmButtonColor:'#32de84', timer:3000, timerProgressBar:true,
+      confirmButtonColor:'#32de84',
+      allowOutsideClick:true, allowEscapeKey:true,
+      timer:3000, timerProgressBar:true,
       html:'<div style="text-align:left;line-height:1.8">' +
         '<b>Username:</b> '+escapeHtml(user.user.username)+'<br>' +
         '<b>Nama:</b> '+escapeHtml(user.user.name)+'<br>' +
@@ -1626,7 +1610,11 @@ function startAttendance(type){
   const btn = type==='in' ? $('btn-start-in') : $('btn-start-out');
   attendanceType = type;
   if(!modelsLoaded){ alert('Model AI belum siap.'); return; }
-  faceSession = null; faceVerification = null; gps = null;
+
+  resetScannerUI();
+  gps = null;
+  scannerRunning = false;
+
   show('scanner');
   $('scanner-title').textContent = type==='in' ? 'FacePrint In' : 'FacePrint Out';
   $('scan-step-1').classList.remove('hidden');
@@ -1641,6 +1629,7 @@ function startAttendance(type){
   getGPSForPrep();
   setBusy(btn, false);
 }
+
 async function getGPSForPrep(){
   $('prep-gps-status').textContent = 'Mencari...';
   $('prep-gps-status').className = 'text-yellow-400';
@@ -1680,6 +1669,7 @@ async function getGPSForPrep(){
     {enableHighAccuracy:true, timeout:15000, maximumAge:0}
   );
 }
+
 async function startAttendanceScanner(){
   const btn = $('btn-scan-start');
   setBusy(btn, true, 'Menyiapkan...');
@@ -1724,31 +1714,36 @@ async function startAttendanceScanner(){
   }catch(e){
     console.error('Attendance scan error:', e);
     stopStream(stream); stream=null; scannerRunning=false;
+    resetScannerUI();
     showLoading('Gagal', e.message || 'Verifikasi gagal.', 'error');
     await sleep(1800);
     hideLoading();
     $('scan-step-2').classList.add('hidden');
+    $('scan-step-3').classList.add('hidden');
     $('scan-step-1').classList.remove('hidden');
     setScanStep(1);
     $('prep-camera-status').textContent = 'Menunggu';
     $('prep-camera-status').className = 'text-slate-400';
   } finally { setBusy(btn, false); }
 }
+
 function cancelScanToStep2(){
   if(!confirm('Rekam ulang wajah? Data verifikasi sebelumnya akan dihapus.')) return;
-  faceSession = null; faceVerification = null;
+  resetScannerUI();
   $('scan-step-3').classList.add('hidden');
   $('scan-step-1').classList.remove('hidden');
   setScanStep(1);
   if(!gps) getGPSForPrep();
 }
+
 function cancelScanAndHome(){
   if(scannerRunning){ if(!confirm('Batalkan proses absen?')) return; }
   goHome();
 }
+
 async function submitAttendance(){
   if(!faceVerification || !gps || !faceSession){
-    Swal.fire({icon:'warning', title:'Data belum siap', text:'Verifikasi wajah dan GPS belum siap.', background:'#1c1c1e', color:'#fff'});
+    Swal.fire({icon:'warning', title:'Data belum siap', text:'Verifikasi wajah dan GPS belum siap.', background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true});
     return;
   }
   const btn = $('btn-attendance');
@@ -1768,7 +1763,9 @@ async function submitAttendance(){
     hideLoading();
     await Swal.fire({
       icon:'success', title:'Absensi Berhasil', background:'#1c1c1e', color:'#fff',
-      confirmButtonColor:'#32de84', timer:3000, timerProgressBar:true,
+      confirmButtonColor:'#32de84',
+      allowOutsideClick:true, allowEscapeKey:true,
+      timer:3000, timerProgressBar:true,
       html:`<div style="line-height:1.8;text-align:left">
         <b>Nama:</b> ${escapeHtml(result.user.name)}<br>
         <b>Tipe:</b> ${result.type}<br>
@@ -1824,33 +1821,36 @@ async function startUpdateScanner(){
     console.error('Update scan error:', e);
     stopStream(updateStream); updateStream=null;
     updateScannerRunning = false;
+    resetUpdateUI();
     hideLoading();
     showLoading('Gagal', e.message || 'Verifikasi gagal.', 'error');
     await sleep(2000);
     hideLoading();
     $('update-step-2').classList.add('hidden');
+    $('update-step-3').classList.add('hidden');
     $('update-step-1').classList.remove('hidden');
     setUpdateStep(1);
   } finally { setBusy(btn, false); }
 }
+
 function cancelUpdateToStep2(){
   if(!confirm('Rekam ulang wajah? Data verifikasi sebelumnya akan dihapus.')) return;
-  faceSession = null; faceVerification = null; currentUpdateUser = null;
-  $('up-ic').textContent = '-'; $('up-name').textContent = '-'; $('up-address').textContent = '-';
-  $('up-phone').value = ''; $('up-phone2').value = ''; $('up-file1').value = ''; $('up-file2').value = '';
+  resetUpdateUI();
   $('update-step-3').classList.add('hidden');
   $('update-step-1').classList.remove('hidden');
   setUpdateStep(1);
 }
+
 function cancelUpdateAndHome(){
   if(updateScannerRunning){ if(!confirm('Batalkan proses update? Verifikasi akan hilang.')) return; }
   faceSession = null; faceVerification = null; currentUpdateUser = null;
   goHome();
 }
+
 async function saveUpdate(){
   const btn = $('btn-update-submit');
   if(!currentUpdateUser || !faceSession || !faceVerification){
-    Swal.fire({icon:'warning', title:'Data verifikasi hilang', text:'Silakan verifikasi ulang.', background:'#1c1c1e', color:'#fff'});
+    Swal.fire({icon:'warning', title:'Data verifikasi hilang', text:'Silakan verifikasi ulang.', background:'#1c1c1e', color:'#fff', allowOutsideClick:true, allowEscapeKey:true});
     return;
   }
   setBusy(btn, true, 'Menyimpan...');
@@ -1872,7 +1872,9 @@ async function saveUpdate(){
     hideLoading();
     await Swal.fire({
       icon:'success', title:'Data Berhasil Diperbarui', background:'#1c1c1e', color:'#fff',
-      confirmButtonColor:'#32de84', timer:2500, timerProgressBar:true,
+      confirmButtonColor:'#32de84',
+      allowOutsideClick:true, allowEscapeKey:true,
+      timer:2500, timerProgressBar:true,
       html:'<div style="line-height:1.8;text-align:left">' +
         '<b>Nama:</b> ' + escapeHtml(currentUpdateUser.name) + '<br>' +
         '<b>No. Telefon:</b> ' + escapeHtml($('up-phone').value.trim() || '-') + '<br>' +
@@ -1886,6 +1888,7 @@ async function saveUpdate(){
     hideLoading();
   } finally { setBusy(btn, false); }
 }
+
 function optionalFile(file){
   if(!file) return Promise.resolve(null);
   return new Promise((resolve, reject) => {
@@ -1898,7 +1901,7 @@ function optionalFile(file){
 }
 
 /* ============================================================
- * LIVENESS — V3.4.1 dengan intro, stabilization, lock
+ * LIVENESS — V3.4.2 (intro + stabilization + lock)
  * ========================================================== */
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
