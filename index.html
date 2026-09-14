@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V3.4.2 — MediaPipe + ONNX</title>
+<title>FacePrint V3.5.0 — MediaPipe + ONNX</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -94,6 +94,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 .intro-icon{font-size:3rem;color:#facc15;margin-bottom:12px;animation:blinkPulse 1s ease-in-out infinite;}
 .intro-title{color:#facc15;font-weight:800;font-size:1.3rem;}
 .intro-countdown{color:#fff;font-size:2.5rem;font-weight:900;margin-top:8px;font-variant-numeric:tabular-nums;}
+.identity-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .75rem;border-radius:999px;background:rgba(50,222,132,.15);border:1px solid rgba(50,222,132,.5);font-weight:700;font-size:.75rem;color:#32de84;animation:checkPop .4s ease;}
+.identity-badge .dot{width:8px;height:8px;border-radius:50%;background:#32de84;animation:dotPulse 1.2s ease-in-out infinite;}
 </style>
 </head>
 
@@ -150,7 +152,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </div>
 
-<!-- ACTION LOADING OVERLAY (dismissible untuk success/error) -->
+<!-- ACTION LOADING OVERLAY -->
 <div id="action-loading" class="hidden fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
   <div class="card p-8 max-w-sm w-full text-center">
     <div id="action-loading-icon-wrap" class="relative mx-auto w-20 h-20 mb-4"></div>
@@ -180,7 +182,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V3.4.2 — MediaPipe + ONNX</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V3.5.0 — MediaPipe + ONNX</p>
   </div>
   <div class="space-y-3">
     <button id="btn-start-in" class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
@@ -245,6 +247,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       </div>
       <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs z-20">
         <span id="scan-status">Mempersiapkan kamera...</span>
+      </div>
+      <div id="scan-identity-badge" class="hidden absolute top-16 left-1/2 -translate-x-1/2 z-20">
+        <div class="identity-badge">
+          <span class="dot"></span>
+          <i class="fa-solid fa-user-check"></i>
+          <span>Identitas terdeteksi</span>
+        </div>
       </div>
       <div id="scan-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg z-20">
         <i class="fa-solid fa-check mr-1"></i><span id="scan-lock-text">Terkunci!</span>
@@ -507,7 +516,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       </div>
       <div class="flex items-start gap-2">
         <i class="fa-solid fa-shield-halved text-emerald-400 mt-0.5"></i>
-        <div>Verifikasi menggunakan engine MediaPipe + MobileFaceNet sesuai parameter server.</div>
+        <div>Verifikasi menggunakan engine MediaPipe + MobileFaceNet dengan cache biometrik lokal.</div>
       </div>
     </div>
     <button id="btn-update-start-scan" class="btn w-full bg-emerald-400 text-black" onclick="startUpdateScanner()">
@@ -522,6 +531,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       </div>
       <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs z-20">
         <span id="update-status">Mempersiapkan...</span>
+      </div>
+      <div id="update-identity-badge" class="hidden absolute top-16 left-1/2 -translate-x-1/2 z-20">
+        <div class="identity-badge">
+          <span class="dot"></span>
+          <i class="fa-solid fa-user-check"></i>
+          <span>Identitas terdeteksi</span>
+        </div>
       </div>
       <div id="update-lock-badge" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-4 py-1.5 rounded-full font-bold text-xs shadow-lg z-20">
         <i class="fa-solid fa-check mr-1"></i><span id="update-lock-text">Terkunci!</span>
@@ -580,7 +596,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 /* ============================================================
  * KONFIGURASI
  * ========================================================== */
-const API_URL = "https://script.google.com/macros/s/AKfycbx4PTAolc8KqjNujkJ4QIRKZz3ofaZseK4IW4SawEOQ9SZD6VErvOtUHPqNhsGC4n00/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwGu0N6J1rIohAe7-J-F4oxNrl4L1fHUoKBq1zFnzeMmB3l4lwRZ5I0uk-Qw7dw964/exec";
 const MODEL_BASE = "models";
 
 const CFG = {
@@ -642,6 +658,12 @@ let faceInputShape = [1, 3, 112, 112];
 let livenessInputShape = [1, 3, 80, 80];
 let faceOutputDim = 512;
 
+// === V3.5.0 Cache state ===
+let sessionTemplates = null;
+let sessionCacheToken = null;
+let sessionMatchedOpaqueId = null;
+let sessionMatchedDistance = Infinity;
+
 /* ============================================================
  * UI
  * ========================================================== */
@@ -651,6 +673,7 @@ function show(id){
   $(id).classList.remove('hidden');
 }
 function goHome(){
+  clearBiometricCache();
   stopAllCameras();
   scannerRunning=false; updateScannerRunning=false; registrationRunning=false;
   poseLoopRunning=false;
@@ -665,7 +688,77 @@ function updateClock(){
 setInterval(updateClock,1000);updateClock();
 
 /* ============================================================
- * RESET UI — Bersihkan sisa sesi sebelumnya (V3.4.2)
+ * BIOMETRIC CACHE — V3.5.0
+ * ========================================================== */
+async function downloadBiometricCache(sessionId){
+  const r = await api('biometric_cache', { face_session_id: sessionId });
+  if (!r.success) throw new Error(r.error || 'Gagal download biometrik.');
+  sessionTemplates = r.templates || [];
+  sessionCacheToken = r.cache_token;
+  sessionMatchedOpaqueId = null;
+  sessionMatchedDistance = Infinity;
+  console.log('[CACHE] Downloaded', sessionTemplates.length, 'templates for session', sessionId);
+  if (sessionTemplates.length === 0) {
+    throw new Error('Belum ada user terdaftar. Hubungi administrator.');
+  }
+  return r;
+}
+
+function clearBiometricCache(){
+  sessionTemplates = null;
+  sessionCacheToken = null;
+  sessionMatchedOpaqueId = null;
+  sessionMatchedDistance = Infinity;
+  console.log('[CACHE] Cleared');
+}
+
+function euclideanDistanceJS(a, b){
+  let sum = 0;
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    const d = a[i] - b[i];
+    sum += d * d;
+  }
+  return Math.sqrt(sum);
+}
+
+function findBestMatchLocal(descriptor){
+  if (!sessionTemplates || !sessionTemplates.length) {
+    return { matched: false, opaque_id: null, distance: Infinity };
+  }
+  const threshold = CFG.faceMatchThreshold;
+  let best = { opaque_id: null, distance: Infinity };
+
+  for (let i = 0; i < sessionTemplates.length; i++) {
+    const t = sessionTemplates[i];
+    for (let j = 0; j < t.descriptors.length; j++) {
+      const stored = t.descriptors[j];
+      if (stored.length !== descriptor.length) continue;
+      const d = euclideanDistanceJS(descriptor, stored);
+      if (d < best.distance) {
+        best = { opaque_id: t.opaque_id, distance: d };
+      }
+    }
+  }
+
+  if (best.distance > threshold) {
+    return { matched: false, opaque_id: null, distance: best.distance };
+  }
+  return { matched: true, opaque_id: best.opaque_id, distance: best.distance };
+}
+
+async function captureDescriptorNow(videoId){
+  const video = $(videoId);
+  const results = await detectFaceMediaPipe(video);
+  if (!results) return null;
+  const landmarks = results.faceLandmarks[0];
+  const aligned = alignFaceToCanvas(video, landmarks, 112);
+  const descriptor = await getFaceEmbedding(aligned);
+  return descriptor;
+}
+
+/* ============================================================
+ * RESET UI
  * ========================================================== */
 function resetScannerUI(){
   const fill = $('scan-meter-fill');
@@ -688,6 +781,8 @@ function resetScannerUI(){
 
   const lb = $('scan-lock-badge');
   if(lb) lb.classList.add('hidden');
+  const ib = $('scan-identity-badge');
+  if(ib) ib.classList.add('hidden');
 
   document.querySelectorAll('[data-scan-step]').forEach(el => {
     el.classList.remove('done','active');
@@ -721,6 +816,8 @@ function resetUpdateUI(){
 
   const lb = $('update-lock-badge');
   if(lb) lb.classList.add('hidden');
+  const ib = $('update-identity-badge');
+  if(ib) ib.classList.add('hidden');
 
   document.querySelectorAll('[data-update-step]').forEach(el => {
     el.classList.remove('done','active');
@@ -767,7 +864,7 @@ function setSessionBadge(){
 }
 
 /* ============================================================
- * ACTION LOADING OVERLAY (dismissible)
+ * ACTION LOADING OVERLAY
  * ========================================================== */
 function showLoading(title, msg, iconType) {
   const el = $('action-loading');
@@ -775,7 +872,6 @@ function showLoading(title, msg, iconType) {
   const hint = $('action-loading-hint');
   $('action-loading-title').textContent = title || 'Memproses...';
   $('action-loading-msg').textContent = msg || 'Mohon tunggu';
-
   el.onclick = null;
   el.classList.remove('dismissible');
   hint.classList.add('hidden');
@@ -796,7 +892,6 @@ function showLoading(title, msg, iconType) {
   }
   el.classList.remove('hidden', 'fade-out');
 }
-
 function hideLoading() {
   const el = $('action-loading');
   if(!el) return;
@@ -874,7 +969,6 @@ async function loadModels(){
   try{
     splashSetProgress(5, 'Menunggu MediaPipe...');
     splashSetModelState('mediapipe', 'loading');
-
     if(!window.FaceLandmarker){
       await new Promise(resolve => {
         if(window.FaceLandmarker) resolve();
@@ -883,19 +977,14 @@ async function loadModels(){
       });
     }
     if(!window.FaceLandmarker) throw new Error('MediaPipe gagal dimuat.');
-
     splashSetProgress(15, 'Memuat MediaPipe Face Landmarker...');
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm"
-    );
+    const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm");
     faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
       baseOptions: {
         modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
         delegate: "GPU"
       },
-      outputFaceBlendshapes: true,
-      runningMode: "VIDEO",
-      numFaces: 1
+      outputFaceBlendshapes: true, runningMode: "VIDEO", numFaces: 1
     });
     splashSetProgress(35, 'MediaPipe siap');
     splashSetModelState('mediapipe', 'done', 'MediaPipe Face Landmarker');
@@ -907,7 +996,6 @@ async function loadModels(){
 
     splashSetProgress(40, 'Memuat MobileFaceNet...');
     splashSetModelState('mobilefacenet', 'loading');
-
     try {
       faceRecognitionSession = await ort.InferenceSession.create(`${MODEL_BASE}/mobile_facenet.onnx`);
       faceInputName  = faceRecognitionSession.inputNames[0];
@@ -932,7 +1020,6 @@ async function loadModels(){
 
     splashSetProgress(75, 'Memuat MiniFASNetV2...');
     splashSetModelState('minifasnet', 'loading');
-
     try {
       livenessSession = await ort.InferenceSession.create(`${MODEL_BASE}/MiniFASNetV2.onnx`);
       livenessInputName = livenessSession.inputNames[0];
@@ -988,7 +1075,7 @@ async function loadServerConfig(){
        Number.isFinite(Number(c.office_lat)) && Number.isFinite(Number(c.office_lng))){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
-    const v = c.app_version || '3.4.2';
+    const v = c.app_version || '3.5.0';
     const subtitle = document.querySelector('#home h1 + p');
     if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — MediaPipe + ONNX';
     console.log('[CFG] Server config loaded');
@@ -1610,11 +1697,10 @@ function startAttendance(type){
   const btn = type==='in' ? $('btn-start-in') : $('btn-start-out');
   attendanceType = type;
   if(!modelsLoaded){ alert('Model AI belum siap.'); return; }
-
   resetScannerUI();
+  clearBiometricCache();
   gps = null;
   scannerRunning = false;
-
   show('scanner');
   $('scanner-title').textContent = type==='in' ? 'FacePrint In' : 'FacePrint Out';
   $('scan-step-1').classList.remove('hidden');
@@ -1688,8 +1774,8 @@ async function startAttendanceScanner(){
         setTimeout(() => { clearInterval(check); resolve(); }, 10000);
       });
     }
-    if(!gps) throw new Error('GPS tidak tersedia. Pastikan izin lokasi diizinkan dan tunggu sinyal GPS.');
-    if(gps.gps_accuracy > CFG.maxGpsAccuracyMeters) throw new Error('Akurasi GPS terlalu rendah: ±' + Math.round(gps.gps_accuracy) + ' m. Maksimum ' + CFG.maxGpsAccuracyMeters + ' m.');
+    if(!gps) throw new Error('GPS tidak tersedia. Pastikan izin lokasi diizinkan.');
+    if(gps.gps_accuracy > CFG.maxGpsAccuracyMeters) throw new Error('Akurasi GPS terlalu rendah: ±' + Math.round(gps.gps_accuracy) + ' m.');
     showLoading('Memulai Verifikasi', 'Bersiap mendeteksi wajah...');
     await sleep(400);
     hideLoading();
@@ -1713,6 +1799,7 @@ async function startAttendanceScanner(){
     setScanStep(3);
   }catch(e){
     console.error('Attendance scan error:', e);
+    clearBiometricCache();
     stopStream(stream); stream=null; scannerRunning=false;
     resetScannerUI();
     showLoading('Gagal', e.message || 'Verifikasi gagal.', 'error');
@@ -1730,6 +1817,7 @@ async function startAttendanceScanner(){
 function cancelScanToStep2(){
   if(!confirm('Rekam ulang wajah? Data verifikasi sebelumnya akan dihapus.')) return;
   resetScannerUI();
+  clearBiometricCache();
   $('scan-step-3').classList.add('hidden');
   $('scan-step-1').classList.remove('hidden');
   setScanStep(1);
@@ -1738,6 +1826,7 @@ function cancelScanToStep2(){
 
 function cancelScanAndHome(){
   if(scannerRunning){ if(!confirm('Batalkan proses absen?')) return; }
+  clearBiometricCache();
   goHome();
 }
 
@@ -1819,6 +1908,7 @@ async function startUpdateScanner(){
     setUpdateStep(3);
   }catch(e){
     console.error('Update scan error:', e);
+    clearBiometricCache();
     stopStream(updateStream); updateStream=null;
     updateScannerRunning = false;
     resetUpdateUI();
@@ -1836,6 +1926,7 @@ async function startUpdateScanner(){
 function cancelUpdateToStep2(){
   if(!confirm('Rekam ulang wajah? Data verifikasi sebelumnya akan dihapus.')) return;
   resetUpdateUI();
+  clearBiometricCache();
   $('update-step-3').classList.add('hidden');
   $('update-step-1').classList.remove('hidden');
   setUpdateStep(1);
@@ -1843,6 +1934,7 @@ function cancelUpdateToStep2(){
 
 function cancelUpdateAndHome(){
   if(updateScannerRunning){ if(!confirm('Batalkan proses update? Verifikasi akan hilang.')) return; }
+  clearBiometricCache();
   faceSession = null; faceVerification = null; currentUpdateUser = null;
   goHome();
 }
@@ -1901,11 +1993,14 @@ function optionalFile(file){
 }
 
 /* ============================================================
- * LIVENESS — V3.4.2 (intro + stabilization + lock)
+ * LIVENESS — V3.5.0 (intro + lock + client-side identity per pose)
  * ========================================================== */
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
   const videoWrap = video.closest('.video-wrap');
+  const identityBadgeId = uiPrefix === 'scan' ? 'scan-identity-badge' : 'update-identity-badge';
+  const identityBadge = $(identityBadgeId);
+
   let current = 0;
   let holdProgress = 0;
   let lastFrameTime = performance.now();
@@ -2094,6 +2189,39 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
 
     if(stepPassed){
       const currentLabel = labelChallenge(step);
+
+      // === V3.5.0: IDENTITY CHECK PER POSE ===
+      try {
+        const probeDescriptor = await captureDescriptorNow(videoId);
+        if (!probeDescriptor) {
+          throw new Error('Gagal membaca wajah. Coba lagi.');
+        }
+
+        const match = findBestMatchLocal(probeDescriptor);
+        console.log('[IDENTITY] Pose ' + (current + 1) + ' dist:', match.distance.toFixed(3), 'opaque:', match.opaque_id);
+
+        if (!match.matched) {
+          clearBiometricCache();
+          throw new Error('Wajah tidak dikenali. Pastikan Anda sudah terdaftar, atau coba lagi dengan pencahayaan lebih baik.');
+        }
+
+        if (sessionMatchedOpaqueId === null) {
+          sessionMatchedOpaqueId = match.opaque_id;
+          sessionMatchedDistance = match.distance;
+          if (identityBadge) identityBadge.classList.remove('hidden');
+          console.log('[IDENTITY] Identity established at pose 1');
+        } else if (match.opaque_id !== sessionMatchedOpaqueId) {
+          clearBiometricCache();
+          throw new Error('Wajah berbeda terdeteksi. Sesi dibatalkan. Pastikan wajah yang sama sepanjang proses.');
+        } else if (match.distance < sessionMatchedDistance) {
+          sessionMatchedDistance = match.distance;
+        }
+      } catch(identityErr){
+        clearBiometricCache();
+        throw identityErr;
+      }
+      // === END IDENTITY CHECK ===
+
       current++;
       holdProgress = 0; stableFrames = 0; bFSM = 'waiting'; bClosedFrames = 0;
       showLockOverlay(current, currentLabel);
@@ -2101,6 +2229,7 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
       await sleep(LOCK_MS);
       removeLockOverlay();
       updateLivenessUI(uiPrefix, 0, null, current, challenge.length);
+
       if(current < challenge.length){
         showIntroOverlay();
         const nextIntroStart = performance.now();
@@ -2172,9 +2301,10 @@ function showLivenessLockBadge(p){ const b=$(p+'-lock-badge'); if(b) b.classList
 function hideLivenessLockBadge(p){ const b=$(p+'-lock-badge'); if(b) b.classList.add('hidden'); }
 
 /* ============================================================
- * FACE SESSION / VERIFY
+ * FACE SESSION / VERIFY — V3.5.0
  * ========================================================== */
 async function newFaceSession(){ faceSession = await api('face_session'); return faceSession; }
+
 async function captureProbe(videoId){
   const video = $(videoId);
   const results = await detectFaceMediaPipe(video);
@@ -2189,20 +2319,53 @@ async function captureProbe(videoId){
   const descriptor = await getFaceEmbedding(aligned);
   return { descriptor, quality, liveScore };
 }
+
 async function verifyCurrentFace(videoId, statusId, uiPrefix){
   if(!faceSession) await newFaceSession();
+
+  // === V3.5.0: Download semua template biometrik dulu ===
+  showLoading('Menyiapkan Data', 'Mendownload data biometrik dari server...');
+  try{
+    await downloadBiometricCache(faceSession.face_session_id);
+  }catch(e){
+    hideLoading();
+    throw new Error('Gagal memuat data biometrik: ' + e.message);
+  }
+  hideLoading();
+
+  // === Jalankan liveness dengan cek identitas per-pose ===
   const live = await runLiveness(videoId, statusId, faceSession.challenge, uiPrefix);
+
+  // === Pastikan ada identitas yang ter-track ===
+  if (!sessionMatchedOpaqueId) {
+    clearBiometricCache();
+    throw new Error('Identitas tidak berhasil diverifikasi.');
+  }
+
+  // === Capture probe final untuk server verification ===
   const probe = await captureProbe(videoId);
-  faceVerification = await api('face_verify', {
-    face_session_id: faceSession.face_session_id,
-    descriptor: probe.descriptor,
-    quality: { score: probe.quality },
-    liveness: {
-      result: 'PASS',
-      challenge_id: faceSession.challenge_id,
-      steps_completed: live.steps_completed
-    }
-  });
+
+  // === Kirim ke server dengan opaque_id ===
+  try{
+    faceVerification = await api('face_verify_with_cache', {
+      face_session_id: faceSession.face_session_id,
+      opaque_id: sessionMatchedOpaqueId,
+      descriptor: probe.descriptor,
+      quality: { score: probe.quality },
+      liveness: {
+        result: 'PASS',
+        challenge_id: faceSession.challenge_id,
+        steps_completed: live.steps_completed
+      }
+    });
+  } catch(e){
+    clearBiometricCache();
+    throw e;
+  }
+
+  // === Wipe cache dari memory ===
+  clearBiometricCache();
+
   return faceVerification;
 }
 
@@ -2285,6 +2448,7 @@ async function loginAdmin(event){
 async function logoutAdmin(){
   try{ if(authToken) await api('auth_logout'); }catch(e){ console.warn(e); }
   clearLocalSession(); stopAllCameras();
+  clearBiometricCache();
   registrationRunning=false; poseLoopRunning=false;
   goHome();
 }
@@ -2339,7 +2503,10 @@ function escapeHtml(s){
   }[c]));
 }
 
-window.addEventListener('beforeunload', () => stopAllCameras());
+window.addEventListener('beforeunload', () => {
+  clearBiometricCache();
+  stopAllCameras();
+});
 
 window.addEventListener('load', async () => {
   try {
