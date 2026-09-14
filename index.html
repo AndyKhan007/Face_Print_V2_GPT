@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V3.6.2 — MediaPipe + ONNX</title>
+<title>FacePrint V3.6.3 — MediaPipe + ONNX</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,8 +19,35 @@
 </script>
 <style>
 :root{--bg:#101113;--card:#1c1c1e;--accent:#32de84;--muted:#94a3b8}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f8fafc;font-family:Roboto,sans-serif}
-.card{background:var(--card);border:1px solid #27272a;border-radius:18px;box-shadow:0 18px 45px rgba(0,0,0,.28)}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  /* Background semi-transparan agar matrix terlihat */
+  background: rgba(16,17,19,0.82);
+  color:#f8fafc;
+  font-family:Roboto,sans-serif;
+  position: relative;
+}
+/* Canvas matrix di layer paling belakang */
+#matrix-bg{
+  position: fixed;
+  top:0;
+  left:0;
+  width:100vw;
+  height:100vh;
+  z-index:-1;
+  pointer-events:none;
+}
+/* Overlay gradient supaya card tetap terbaca */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background: radial-gradient(ellipse at center, rgba(16,17,19,0.55) 0%, rgba(16,17,19,0.92) 80%);
+  z-index:-1;
+  pointer-events:none;
+}
+.card{background:var(--card);border:1px solid #27272a;border-radius:18px;box-shadow:0 18px 45px rgba(0,0,0,.28);position:relative;z-index:1}
 .btn{border-radius:12px;padding:.8rem 1rem;font-weight:700;transition:.2s}.btn:hover{filter:brightness(1.08)}
 .video-wrap{position:relative;background:#000;border-radius:16px;overflow:hidden;aspect-ratio:4/3}
 video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
@@ -101,6 +128,9 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 
 <body class="min-h-screen flex flex-col">
 
+<!-- MATRIX BACKGROUND CANVAS (V3.6.3) -->
+<canvas id="matrix-bg"></canvas>
+
 <!-- SPLASH SCREEN -->
 <div id="splash-screen" class="fixed inset-0 z-[10000] flex items-center justify-center bg-zinc-950">
   <div class="text-center space-y-8 max-w-md px-6">
@@ -164,7 +194,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
   </div>
 </div>
 
-<header class="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur p-4 flex justify-between items-center">
+<header class="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur p-4 flex justify-between items-center relative z-10">
   <div class="font-bold tracking-wide text-emerald-400"><i class="fa-solid fa-fingerprint mr-2"></i>FacePrint V3</div>
   <div class="flex gap-3 items-center">
     <span id="session-badge" class="badge text-slate-400">Public</span>
@@ -173,7 +203,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 </header>
 
 <div id="global-loading"><div class="card p-6 text-center"><div class="spinner" style="width:2rem;height:2rem;border-width:3px;margin:0 auto 12px"></div><div id="global-loading-text" class="font-semibold">Memproses...</div></div></div>
-<main class="flex-1 p-4 flex items-center justify-center">
+<main class="flex-1 p-4 flex items-center justify-center relative z-10">
 
 <!-- HOME -->
 <section id="home" class="card w-full max-w-md p-7 space-y-5">
@@ -182,7 +212,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V3.6.2 — MediaPipe + ONNX</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V3.6.3 — MediaPipe + ONNX</p>
   </div>
   <div class="space-y-3">
     <button id="btn-start-in" class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
@@ -544,7 +574,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       </div>
     </div>
 
-    <!-- Challenge box (BARU V3.6.2) -->
+    <!-- Challenge box -->
     <div id="update-challenge-box" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-4">
       <div class="text-xs text-slate-400">Liveness challenge</div>
       <div id="update-challenge-text" class="font-bold text-emerald-400 mt-1"></div>
@@ -597,9 +627,86 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
 </section>
 
 </main>
-<footer class="text-center text-xs text-slate-600 border-t border-zinc-900 p-4">FacePrint V3 • MediaPipe + ONNX Runtime</footer>
+<footer class="text-center text-xs text-slate-600 border-t border-zinc-900 p-4 relative z-10">FacePrint V3 • MediaPipe + ONNX Runtime</footer>
 
 <script>
+/* ============================================================
+ * MATRIX BACKGROUND — V3.6.3 (ringan, tanpa library eksternal)
+ * ========================================================== */
+(function initMatrixBackground(){
+  const canvas = document.getElementById('matrix-bg');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const chars = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const fontSize = 14;
+  let columns = 0;
+  let drops = [];
+  let frameCount = 0;
+  const fps = 24;
+  const frameInterval = 1000 / fps;
+  let lastFrame = 0;
+
+  function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    columns = Math.floor(canvas.width / fontSize);
+    drops = new Array(columns).fill(1).map(() => Math.random() * -100);
+  }
+
+  function draw(){
+    // Efek fade trail
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Warna karakter
+    ctx.fillStyle = '#0F0';
+    ctx.font = fontSize + 'px monospace';
+
+    for (let i = 0; i < drops.length; i++) {
+      const char = chars[Math.floor(Math.random() * chars.length)];
+      const x = i * fontSize;
+      const y = drops[i] * fontSize;
+
+      // Karakter paling depan lebih terang
+      const brightness = Math.random();
+      if (brightness > 0.95) {
+        ctx.fillStyle = '#cfffcf';
+      } else if (brightness > 0.7) {
+        ctx.fillStyle = '#3f3';
+      } else {
+        ctx.fillStyle = '#0a0';
+      }
+      ctx.fillText(char, x, y);
+
+      // Reset drop ke atas dengan probabilitas
+      if (y > canvas.height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+      drops[i] += 0.4;
+    }
+  }
+
+  function loop(ts){
+    if (ts - lastFrame >= frameInterval) {
+      draw();
+      lastFrame = ts;
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // Jeda saat tab tidak aktif (hemat resource)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Tidak ada aksi; requestAnimationFrame akan otomatis throttle
+    }
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(loop);
+})();
+
 /* ============================================================
  * KONFIGURASI
  * ========================================================== */
@@ -665,7 +772,6 @@ let faceInputShape = [1, 3, 112, 112];
 let livenessInputShape = [1, 3, 80, 80];
 let faceOutputDim = 512;
 
-// Cache state
 let sessionTemplates = null;
 let sessionCacheToken = null;
 let sessionMatchedOpaqueId = null;
@@ -832,7 +938,6 @@ function resetUpdateUI(){
   const ib = $('update-identity-badge');
   if(ib) ib.classList.add('hidden');
 
-  // Reset challenge box (V3.6.2)
   const ucb = $('update-challenge-box');
   if(ucb) ucb.classList.add('hidden');
   const uct = $('update-challenge-text');
@@ -1129,7 +1234,7 @@ async function loadServerConfig(){
        Number.isFinite(Number(c.office_lat)) && Number.isFinite(Number(c.office_lng))){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
-    const v = c.app_version || '3.6.2';
+    const v = c.app_version || '3.6.3';
     const subtitle = document.querySelector('#home h1 + p');
     if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — MediaPipe + ONNX';
     console.log('[CFG] Server config loaded');
@@ -1942,7 +2047,7 @@ async function submitAttendance(){
 }
 
 /* ============================================================
- * UPDATE DOKUMEN — V3.6.2 (challenge box added)
+ * UPDATE DOKUMEN
  * ========================================================== */
 async function startUpdateScanner(){
   const btn = $('btn-update-start-scan');
@@ -1950,10 +2055,8 @@ async function startUpdateScanner(){
   setBusy(btn, true, 'Menyiapkan...');
 
   try{
-    // === STEP 1: Buat face session ===
     faceSession = await newFaceSession();
 
-    // === STEP 2: Download biometrik SEBELUM kamera aktif ===
     showLoading('Mempersiapkan Engine AI', 'Memuat komponen engine...');
     await sleep(500);
 
@@ -1968,30 +2071,24 @@ async function startUpdateScanner(){
     await sleep(400);
     hideLoading();
 
-    // === STEP 3: Buka kamera SETELAH cache siap ===
     updateScannerRunning = true;
     updateStream = await openCamera('update-video');
 
-    // === STEP 4: Pindah ke step 2 ===
     $('update-step-1').classList.add('hidden');
     $('update-step-2').classList.remove('hidden');
     setUpdateStep(2);
 
-    // Setup challenge box (V3.6.2 — identik dengan Face In/Out)
     $('update-challenge-box').classList.remove('hidden');
     $('update-challenge-text').textContent = faceSession.challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
     $('update-status').textContent = 'Bersiap...';
 
-    // === STEP 5: Jalankan liveness + final verify ===
     faceVerification = await verifyCurrentFace('update-video', 'update-status', 'update');
 
     if(!updateScannerRunning) return;
 
-    // === STEP 6: Stop camera ===
     stopStream(updateStream); updateStream = null;
     updateScannerRunning = false;
 
-    // === STEP 7: Ambil data user ===
     showLoading('Memuat Data User', 'Mengambil profil...');
     const data = await api('search_verified_user', {
       face_session_id: faceVerification.face_session_id,
@@ -2093,7 +2190,7 @@ function optionalFile(file){
 }
 
 /* ============================================================
- * LIVENESS — V3.6.2 (challenge box untuk update)
+ * LIVENESS
  * ========================================================== */
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
@@ -2165,7 +2262,6 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     if (el) el.remove();
   }
 
-  // === SHOW CHALLENGE UNTUK KEDUA FLOW (V3.6.2) ===
   if(uiPrefix === 'scan'){
     $('challenge-box').classList.remove('hidden');
     $('challenge-text').textContent = challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
