@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V3.5.0 — MediaPipe + ONNX</title>
+<title>FacePrint V3.6.0 — MediaPipe + ONNX</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -182,7 +182,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V3.5.0 — MediaPipe + ONNX</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V3.6.0 — MediaPipe + ONNX</p>
   </div>
   <div class="space-y-3">
     <button id="btn-start-in" class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
@@ -246,7 +246,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
         <div class="w-64 h-64 rounded-full border-2 border-dashed border-emerald-400/80"></div>
       </div>
       <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 px-4 py-2 rounded-full text-xs z-20">
-        <span id="scan-status">Mempersiapkan kamera...</span>
+        <span id="scan-status">Mempersiapkan...</span>
       </div>
       <div id="scan-identity-badge" class="hidden absolute top-16 left-1/2 -translate-x-1/2 z-20">
         <div class="identity-badge">
@@ -758,7 +758,7 @@ async function captureDescriptorNow(videoId){
 }
 
 /* ============================================================
- * RESET UI
+ * RESET UI — V3.6.0 (bersihkan status text juga)
  * ========================================================== */
 function resetScannerUI(){
   const fill = $('scan-meter-fill');
@@ -773,6 +773,10 @@ function resetScannerUI(){
   if(hint){ hint.classList.remove('text-yellow-400','text-red-400'); hint.classList.add('text-emerald-400'); }
   if(hintArrow){ hintArrow.className = 'pose-arrow'; hintArrow.innerHTML = ''; }
   if(hintText) hintText.textContent = 'Bersiap...';
+
+  // === RESET STATUS TEXT ===
+  const statusText = $('scan-status');
+  if(statusText) statusText.textContent = 'Mempersiapkan...';
 
   const cb = $('challenge-box');
   if(cb) cb.classList.add('hidden');
@@ -813,6 +817,10 @@ function resetUpdateUI(){
   if(hint){ hint.classList.remove('text-yellow-400','text-red-400'); hint.classList.add('text-emerald-400'); }
   if(hintArrow){ hintArrow.className = 'pose-arrow'; hintArrow.innerHTML = ''; }
   if(hintText) hintText.textContent = 'Bersiap...';
+
+  // === RESET STATUS TEXT ===
+  const statusText = $('update-status');
+  if(statusText) statusText.textContent = 'Mempersiapkan...';
 
   const lb = $('update-lock-badge');
   if(lb) lb.classList.add('hidden');
@@ -1075,7 +1083,7 @@ async function loadServerConfig(){
        Number.isFinite(Number(c.office_lat)) && Number.isFinite(Number(c.office_lng))){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
-    const v = c.app_version || '3.5.0';
+    const v = c.app_version || '3.6.0';
     const subtitle = document.querySelector('#home h1 + p');
     if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — MediaPipe + ONNX';
     console.log('[CFG] Server config loaded');
@@ -1759,12 +1767,9 @@ async function getGPSForPrep(){
 async function startAttendanceScanner(){
   const btn = $('btn-scan-start');
   setBusy(btn, true, 'Menyiapkan...');
-  showLoading('Menyiapkan Kamera', 'Mengaktifkan kamera dan GPS...');
+
   try{
-    scannerRunning = true;
-    stream = await openCamera('scan-video');
-    $('prep-camera-status').textContent = 'Aktif';
-    $('prep-camera-status').className = 'text-emerald-400';
+    // === STEP 1: Validasi GPS ===
     if(!gps){
       showLoading('Menyiapkan GPS', 'Menunggu sinyal GPS...');
       await new Promise(resolve => {
@@ -1774,29 +1779,62 @@ async function startAttendanceScanner(){
         setTimeout(() => { clearInterval(check); resolve(); }, 10000);
       });
     }
-    if(!gps) throw new Error('GPS tidak tersedia. Pastikan izin lokasi diizinkan.');
-    if(gps.gps_accuracy > CFG.maxGpsAccuracyMeters) throw new Error('Akurasi GPS terlalu rendah: ±' + Math.round(gps.gps_accuracy) + ' m.');
-    showLoading('Memulai Verifikasi', 'Bersiap mendeteksi wajah...');
+    if(!gps) throw new Error('GPS tidak tersedia. Pastikan izin lokasi diizinkan dan tunggu sinyal GPS.');
+    if(gps.gps_accuracy > CFG.maxGpsAccuracyMeters) throw new Error('Akurasi GPS terlalu rendah: ±' + Math.round(gps.gps_accuracy) + ' m. Maksimum ' + CFG.maxGpsAccuracyMeters + ' m.');
+
+    // === STEP 2: Buat face session ===
+    faceSession = await newFaceSession();
+
+    // === STEP 3: Download biometrik SEBELUM kamera aktif ===
+    showLoading('Mempersiapkan Engine AI', 'Memuat komponen engine...');
+    await sleep(500);
+
+    try {
+      await downloadBiometricCache(faceSession.face_session_id);
+    } catch(e) {
+      hideLoading();
+      throw new Error('Gagal menyiapkan engine: ' + e.message);
+    }
+
+    showLoading('Mempersiapkan Engine AI', 'Mengkalibrasi parameter...');
     await sleep(400);
     hideLoading();
+
+    // === STEP 4: Buka kamera SETELAH cache siap ===
+    scannerRunning = true;
+    stream = await openCamera('scan-video');
+    $('prep-camera-status').textContent = 'Aktif';
+    $('prep-camera-status').className = 'text-emerald-400';
+
+    // === STEP 5: Pindah ke step 2 ===
     $('scan-step-1').classList.add('hidden');
     $('scan-step-2').classList.remove('hidden');
     setScanStep(2);
-    faceSession = await newFaceSession();
+
+    // === STEP 6: Setup display challenge ===
     $('challenge-box').classList.remove('hidden');
     $('challenge-text').textContent = faceSession.challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
+    $('scan-status').textContent = 'Bersiap...';
+
+    // === STEP 7: Jalankan liveness + final verify ===
     await verifyCurrentFace('scan-video', 'scan-status', 'scan');
+
     if(!scannerRunning) return;
+
+    // === STEP 8: Selesai — stop camera ===
     stopStream(stream); stream=null; scannerRunning=false;
+
     const dist = officeCoords ? haversineClient_(officeCoords.lat, officeCoords.lng, gps.latitude, gps.longitude) : 0;
     $('scan-summary-name').textContent = faceVerification.user.name || '—';
     $('scan-summary-type').textContent = attendanceType === 'in' ? 'IN (Masuk)' : 'OUT (Keluar)';
     $('scan-summary-distance').textContent = formatDistance_(dist);
     $('scan-summary-accuracy').textContent = '±' + Math.round(gps.gps_accuracy) + ' m';
     $('scan-summary-time').textContent = new Date().toLocaleTimeString('id-ID');
+
     $('scan-step-2').classList.add('hidden');
     $('scan-step-3').classList.remove('hidden');
     setScanStep(3);
+
   }catch(e){
     console.error('Attendance scan error:', e);
     clearBiometricCache();
@@ -1878,34 +1916,64 @@ async function startUpdateScanner(){
   const btn = $('btn-update-start-scan');
   if(!modelsLoaded){ alert('Model AI belum siap.'); return; }
   setBusy(btn, true, 'Menyiapkan...');
-  showLoading('Menyiapkan Kamera', 'Mengaktifkan kamera...');
+
   try{
+    // === STEP 1: Buat face session ===
+    faceSession = await newFaceSession();
+
+    // === STEP 2: Download biometrik SEBELUM kamera aktif ===
+    showLoading('Mempersiapkan Engine AI', 'Memuat komponen engine...');
+    await sleep(500);
+
+    try {
+      await downloadBiometricCache(faceSession.face_session_id);
+    } catch(e) {
+      hideLoading();
+      throw new Error('Gagal menyiapkan engine: ' + e.message);
+    }
+
+    showLoading('Mempersiapkan Engine AI', 'Mengkalibrasi parameter...');
+    await sleep(400);
+    hideLoading();
+
+    // === STEP 3: Buka kamera SETELAH cache siap ===
     updateScannerRunning = true;
     updateStream = await openCamera('update-video');
-    hideLoading();
+
+    // === STEP 4: Pindah ke step 2 ===
     $('update-step-1').classList.add('hidden');
     $('update-step-2').classList.remove('hidden');
     setUpdateStep(2);
-    faceSession = await newFaceSession();
+    $('update-status').textContent = 'Bersiap...';
+
+    // === STEP 5: Jalankan liveness + final verify ===
     faceVerification = await verifyCurrentFace('update-video', 'update-status', 'update');
+
     if(!updateScannerRunning) return;
+
+    // === STEP 6: Stop camera ===
     stopStream(updateStream); updateStream = null;
     updateScannerRunning = false;
+
+    // === STEP 7: Ambil data user ===
     showLoading('Memuat Data User', 'Mengambil profil...');
     const data = await api('search_verified_user', {
       face_session_id: faceVerification.face_session_id,
       verification_token: faceVerification.verification_token
     });
     hideLoading();
+
     currentUpdateUser = data.data;
     $('up-ic').textContent = currentUpdateUser.ic || '-';
     $('up-name').textContent = currentUpdateUser.name || '-';
     $('up-address').textContent = currentUpdateUser.alamat || '-';
     $('up-phone').value = (currentUpdateUser.noTelpon === '-' || !currentUpdateUser.noTelpon) ? '' : currentUpdateUser.noTelpon;
     $('up-phone2').value = (currentUpdateUser.noTelpon2 === '-' || !currentUpdateUser.noTelpon2) ? '' : currentUpdateUser.noTelpon2;
+
     $('update-step-2').classList.add('hidden');
     $('update-step-3').classList.remove('hidden');
     setUpdateStep(3);
+
   }catch(e){
     console.error('Update scan error:', e);
     clearBiometricCache();
@@ -1993,7 +2061,7 @@ function optionalFile(file){
 }
 
 /* ============================================================
- * LIVENESS — V3.5.0 (intro + lock + client-side identity per pose)
+ * LIVENESS — V3.6.0
  * ========================================================== */
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
@@ -2071,6 +2139,9 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
   }
   initLivenessStepDots(uiPrefix, challenge.length);
   updateLivenessUI(uiPrefix, 0, 'Baca instruksi...', current, challenge.length);
+
+  // Reset status sebelum intro
+  $(statusId).textContent = 'Bersiap...';
 
   // INTRO PERTAMA
   showIntroOverlay();
@@ -2190,7 +2261,7 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     if(stepPassed){
       const currentLabel = labelChallenge(step);
 
-      // === V3.5.0: IDENTITY CHECK PER POSE ===
+      // === IDENTITY CHECK PER POSE ===
       try {
         const probeDescriptor = await captureDescriptorNow(videoId);
         if (!probeDescriptor) {
@@ -2220,7 +2291,6 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
         clearBiometricCache();
         throw identityErr;
       }
-      // === END IDENTITY CHECK ===
 
       current++;
       holdProgress = 0; stableFrames = 0; bFSM = 'waiting'; bClosedFrames = 0;
@@ -2301,7 +2371,7 @@ function showLivenessLockBadge(p){ const b=$(p+'-lock-badge'); if(b) b.classList
 function hideLivenessLockBadge(p){ const b=$(p+'-lock-badge'); if(b) b.classList.add('hidden'); }
 
 /* ============================================================
- * FACE SESSION / VERIFY — V3.5.0
+ * FACE SESSION / VERIFY
  * ========================================================== */
 async function newFaceSession(){ faceSession = await api('face_session'); return faceSession; }
 
@@ -2321,31 +2391,23 @@ async function captureProbe(videoId){
 }
 
 async function verifyCurrentFace(videoId, statusId, uiPrefix){
-  if(!faceSession) await newFaceSession();
+  // Asumsi: faceSession sudah ada & cache sudah di-download
+  if(!faceSession) throw new Error('Face session belum dibuat.');
+  if(!sessionTemplates || !sessionTemplates.length) throw new Error('Cache biometrik belum siap.');
 
-  // === V3.5.0: Download semua template biometrik dulu ===
-  showLoading('Menyiapkan Data', 'Mendownload data biometrik dari server...');
-  try{
-    await downloadBiometricCache(faceSession.face_session_id);
-  }catch(e){
-    hideLoading();
-    throw new Error('Gagal memuat data biometrik: ' + e.message);
-  }
-  hideLoading();
-
-  // === Jalankan liveness dengan cek identitas per-pose ===
+  // Jalankan liveness dengan cek identitas per-pose
   const live = await runLiveness(videoId, statusId, faceSession.challenge, uiPrefix);
 
-  // === Pastikan ada identitas yang ter-track ===
+  // Pastikan ada identitas yang ter-track
   if (!sessionMatchedOpaqueId) {
     clearBiometricCache();
     throw new Error('Identitas tidak berhasil diverifikasi.');
   }
 
-  // === Capture probe final untuk server verification ===
+  // Capture probe final untuk server verification
   const probe = await captureProbe(videoId);
 
-  // === Kirim ke server dengan opaque_id ===
+  // Kirim ke server dengan opaque_id
   try{
     faceVerification = await api('face_verify_with_cache', {
       face_session_id: faceSession.face_session_id,
@@ -2363,7 +2425,7 @@ async function verifyCurrentFace(videoId, statusId, uiPrefix){
     throw e;
   }
 
-  // === Wipe cache dari memory ===
+  // Wipe cache dari memory
   clearBiometricCache();
 
   return faceVerification;
