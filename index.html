@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V3.6.1 — MediaPipe + ONNX</title>
+<title>FacePrint V3.6.2 — MediaPipe + ONNX</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -182,7 +182,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V3.6.1 — MediaPipe + ONNX</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V3.6.2 — MediaPipe + ONNX</p>
   </div>
   <div class="space-y-3">
     <button id="btn-start-in" class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
@@ -543,6 +543,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
         <i class="fa-solid fa-check mr-1"></i><span id="update-lock-text">Terkunci!</span>
       </div>
     </div>
+
+    <!-- Challenge box (BARU V3.6.2) -->
+    <div id="update-challenge-box" class="hidden bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400">Liveness challenge</div>
+      <div id="update-challenge-text" class="font-bold text-emerald-400 mt-1"></div>
+    </div>
+
     <div class="space-y-2">
       <div class="flex justify-between items-center text-xs">
         <span class="text-slate-400">Progress pose</span>
@@ -825,6 +832,12 @@ function resetUpdateUI(){
   const ib = $('update-identity-badge');
   if(ib) ib.classList.add('hidden');
 
+  // Reset challenge box (V3.6.2)
+  const ucb = $('update-challenge-box');
+  if(ucb) ucb.classList.add('hidden');
+  const uct = $('update-challenge-text');
+  if(uct) uct.textContent = '';
+
   document.querySelectorAll('[data-update-step]').forEach(el => {
     el.classList.remove('done','active');
   });
@@ -899,10 +912,6 @@ function showLoading(title, msg, iconType) {
   el.classList.remove('hidden', 'fade-out');
 }
 
-/**
- * Tampilkan loading overlay dan tunggu user klik untuk dismiss.
- * Khusus untuk state error — user harus acknowledge.
- */
 function showLoadingAndWait(title, msg, iconType) {
   return new Promise((resolve) => {
     const el = $('action-loading');
@@ -1120,7 +1129,7 @@ async function loadServerConfig(){
        Number.isFinite(Number(c.office_lat)) && Number.isFinite(Number(c.office_lng))){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
-    const v = c.app_version || '3.6.1';
+    const v = c.app_version || '3.6.2';
     const subtitle = document.querySelector('#home h1 + p');
     if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — MediaPipe + ONNX';
     console.log('[CFG] Server config loaded');
@@ -1804,7 +1813,6 @@ async function startAttendanceScanner(){
   setBusy(btn, true, 'Menyiapkan...');
 
   try{
-    // === STEP 1: Validasi GPS ===
     if(!gps){
       showLoading('Menyiapkan GPS', 'Menunggu sinyal GPS...');
       await new Promise(resolve => {
@@ -1817,10 +1825,8 @@ async function startAttendanceScanner(){
     if(!gps) throw new Error('GPS tidak tersedia. Pastikan izin lokasi diizinkan dan tunggu sinyal GPS.');
     if(gps.gps_accuracy > CFG.maxGpsAccuracyMeters) throw new Error('Akurasi GPS terlalu rendah: ±' + Math.round(gps.gps_accuracy) + ' m. Maksimum ' + CFG.maxGpsAccuracyMeters + ' m.');
 
-    // === STEP 2: Buat face session ===
     faceSession = await newFaceSession();
 
-    // === STEP 3: Download biometrik SEBELUM kamera aktif ===
     showLoading('Mempersiapkan Engine AI', 'Memuat komponen engine...');
     await sleep(500);
 
@@ -1835,28 +1841,23 @@ async function startAttendanceScanner(){
     await sleep(400);
     hideLoading();
 
-    // === STEP 4: Buka kamera SETELAH cache siap ===
     scannerRunning = true;
     stream = await openCamera('scan-video');
     $('prep-camera-status').textContent = 'Aktif';
     $('prep-camera-status').className = 'text-emerald-400';
 
-    // === STEP 5: Pindah ke step 2 ===
     $('scan-step-1').classList.add('hidden');
     $('scan-step-2').classList.remove('hidden');
     setScanStep(2);
 
-    // === STEP 6: Setup display challenge ===
     $('challenge-box').classList.remove('hidden');
     $('challenge-text').textContent = faceSession.challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
     $('scan-status').textContent = 'Bersiap...';
 
-    // === STEP 7: Jalankan liveness + final verify ===
     await verifyCurrentFace('scan-video', 'scan-status', 'scan');
 
     if(!scannerRunning) return;
 
-    // === STEP 8: Selesai — stop camera ===
     stopStream(stream); stream=null; scannerRunning=false;
 
     const dist = officeCoords ? haversineClient_(officeCoords.lat, officeCoords.lng, gps.latitude, gps.longitude) : 0;
@@ -1941,7 +1942,7 @@ async function submitAttendance(){
 }
 
 /* ============================================================
- * UPDATE DOKUMEN
+ * UPDATE DOKUMEN — V3.6.2 (challenge box added)
  * ========================================================== */
 async function startUpdateScanner(){
   const btn = $('btn-update-start-scan');
@@ -1975,6 +1976,10 @@ async function startUpdateScanner(){
     $('update-step-1').classList.add('hidden');
     $('update-step-2').classList.remove('hidden');
     setUpdateStep(2);
+
+    // Setup challenge box (V3.6.2 — identik dengan Face In/Out)
+    $('update-challenge-box').classList.remove('hidden');
+    $('update-challenge-text').textContent = faceSession.challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
     $('update-status').textContent = 'Bersiap...';
 
     // === STEP 5: Jalankan liveness + final verify ===
@@ -2088,7 +2093,7 @@ function optionalFile(file){
 }
 
 /* ============================================================
- * LIVENESS
+ * LIVENESS — V3.6.2 (challenge box untuk update)
  * ========================================================== */
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
@@ -2160,9 +2165,13 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     if (el) el.remove();
   }
 
+  // === SHOW CHALLENGE UNTUK KEDUA FLOW (V3.6.2) ===
   if(uiPrefix === 'scan'){
     $('challenge-box').classList.remove('hidden');
     $('challenge-text').textContent = challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
+  } else if(uiPrefix === 'update'){
+    $('update-challenge-box').classList.remove('hidden');
+    $('update-challenge-text').textContent = challenge.map((x,i)=>(i+1)+'. '+labelChallenge(x)).join('  •  ');
   }
   initLivenessStepDots(uiPrefix, challenge.length);
   updateLivenessUI(uiPrefix, 0, 'Baca instruksi...', current, challenge.length);
@@ -2285,7 +2294,6 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
     if(stepPassed){
       const currentLabel = labelChallenge(step);
 
-      // === IDENTITY CHECK PER POSE ===
       try {
         const probeDescriptor = await captureDescriptorNow(videoId);
         if (!probeDescriptor) {
