@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FacePrint V3.6.0 — MediaPipe + ONNX</title>
+<title>FacePrint V3.6.1 — MediaPipe + ONNX</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -182,7 +182,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1)}
       <i class="fa-solid fa-face-smile"></i>
     </div>
     <h1 class="text-2xl font-bold">Sistem FacePrint</h1>
-    <p class="text-sm text-slate-400 mt-1">FacePrint V3.6.0 — MediaPipe + ONNX</p>
+    <p class="text-sm text-slate-400 mt-1">FacePrint V3.6.1 — MediaPipe + ONNX</p>
   </div>
   <div class="space-y-3">
     <button id="btn-start-in" class="btn w-full bg-emerald-400 text-black" onclick="startAttendance('in')">
@@ -658,7 +658,7 @@ let faceInputShape = [1, 3, 112, 112];
 let livenessInputShape = [1, 3, 80, 80];
 let faceOutputDim = 512;
 
-// === V3.5.0 Cache state ===
+// Cache state
 let sessionTemplates = null;
 let sessionCacheToken = null;
 let sessionMatchedOpaqueId = null;
@@ -688,7 +688,7 @@ function updateClock(){
 setInterval(updateClock,1000);updateClock();
 
 /* ============================================================
- * BIOMETRIC CACHE — V3.5.0
+ * BIOMETRIC CACHE
  * ========================================================== */
 async function downloadBiometricCache(sessionId){
   const r = await api('biometric_cache', { face_session_id: sessionId });
@@ -758,7 +758,7 @@ async function captureDescriptorNow(videoId){
 }
 
 /* ============================================================
- * RESET UI — V3.6.0 (bersihkan status text juga)
+ * RESET UI
  * ========================================================== */
 function resetScannerUI(){
   const fill = $('scan-meter-fill');
@@ -774,7 +774,6 @@ function resetScannerUI(){
   if(hintArrow){ hintArrow.className = 'pose-arrow'; hintArrow.innerHTML = ''; }
   if(hintText) hintText.textContent = 'Bersiap...';
 
-  // === RESET STATUS TEXT ===
   const statusText = $('scan-status');
   if(statusText) statusText.textContent = 'Mempersiapkan...';
 
@@ -818,7 +817,6 @@ function resetUpdateUI(){
   if(hintArrow){ hintArrow.className = 'pose-arrow'; hintArrow.innerHTML = ''; }
   if(hintText) hintText.textContent = 'Bersiap...';
 
-  // === RESET STATUS TEXT ===
   const statusText = $('update-status');
   if(statusText) statusText.textContent = 'Mempersiapkan...';
 
@@ -900,6 +898,45 @@ function showLoading(title, msg, iconType) {
   }
   el.classList.remove('hidden', 'fade-out');
 }
+
+/**
+ * Tampilkan loading overlay dan tunggu user klik untuk dismiss.
+ * Khusus untuk state error — user harus acknowledge.
+ */
+function showLoadingAndWait(title, msg, iconType) {
+  return new Promise((resolve) => {
+    const el = $('action-loading');
+    const wrap = $('action-loading-icon-wrap');
+    const hint = $('action-loading-hint');
+    $('action-loading-title').textContent = title || 'Memproses...';
+    $('action-loading-msg').textContent = msg || 'Mohon tunggu';
+
+    if (iconType === 'error') {
+      wrap.innerHTML = '<div class="absolute inset-0 rounded-full bg-red-500/20 flex items-center justify-center"><i class="fa-solid fa-xmark text-red-400 text-4xl"></i></div>';
+    } else if (iconType === 'success') {
+      wrap.innerHTML = '<div class="absolute inset-0 rounded-full bg-emerald-500/20 flex items-center justify-center"><i class="fa-solid fa-check text-emerald-400 text-4xl"></i></div>';
+    } else {
+      wrap.innerHTML = '<div class="absolute inset-0 rounded-full border-4 border-emerald-400/20"></div><div class="absolute inset-0 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin"></div><i class="fa-solid fa-fingerprint text-emerald-400 absolute inset-0 flex items-center justify-center text-2xl"></i>';
+    }
+
+    const dismiss = () => {
+      el.removeEventListener('click', dismiss);
+      el.onclick = null;
+      el.classList.remove('dismissible');
+      el.style.cursor = 'default';
+      hideLoading();
+      resolve();
+    };
+
+    el.onclick = dismiss;
+    el.classList.add('dismissible');
+    el.style.cursor = 'pointer';
+    if (iconType) hint.classList.remove('hidden');
+
+    el.classList.remove('hidden', 'fade-out');
+  });
+}
+
 function hideLoading() {
   const el = $('action-loading');
   if(!el) return;
@@ -1083,7 +1120,7 @@ async function loadServerConfig(){
        Number.isFinite(Number(c.office_lat)) && Number.isFinite(Number(c.office_lng))){
       officeCoords = { lat: Number(c.office_lat), lng: Number(c.office_lng) };
     }
-    const v = c.app_version || '3.6.0';
+    const v = c.app_version || '3.6.1';
     const subtitle = document.querySelector('#home h1 + p');
     if(subtitle) subtitle.textContent = 'FacePrint V' + v + ' — MediaPipe + ONNX';
     console.log('[CFG] Server config loaded');
@@ -1692,9 +1729,7 @@ async function submitRegistration(){
     enrolledSamples = []; faceCaptureDone = false;
     backToStep1();
   }catch(e){
-    showLoading('Gagal', e.message || 'Pendaftaran gagal.', 'error');
-    await sleep(1500);
-    hideLoading();
+    await showLoadingAndWait('Gagal', e.message || 'Pendaftaran gagal.', 'error');
   } finally { setBusy(btn, false); }
 }
 
@@ -1840,9 +1875,7 @@ async function startAttendanceScanner(){
     clearBiometricCache();
     stopStream(stream); stream=null; scannerRunning=false;
     resetScannerUI();
-    showLoading('Gagal', e.message || 'Verifikasi gagal.', 'error');
-    await sleep(1800);
-    hideLoading();
+    await showLoadingAndWait('Gagal', e.message || 'Verifikasi gagal.', 'error');
     $('scan-step-2').classList.add('hidden');
     $('scan-step-3').classList.add('hidden');
     $('scan-step-1').classList.remove('hidden');
@@ -1902,9 +1935,7 @@ async function submitAttendance(){
     });
     goHome();
   }catch(e){
-    showLoading('Gagal', e.message || 'Absensi gagal.', 'error');
-    await sleep(2000);
-    hideLoading();
+    await showLoadingAndWait('Gagal', e.message || 'Absensi gagal.', 'error');
     btn.disabled = false;
   }
 }
@@ -1981,9 +2012,7 @@ async function startUpdateScanner(){
     updateScannerRunning = false;
     resetUpdateUI();
     hideLoading();
-    showLoading('Gagal', e.message || 'Verifikasi gagal.', 'error');
-    await sleep(2000);
-    hideLoading();
+    await showLoadingAndWait('Gagal', e.message || 'Verifikasi gagal.', 'error');
     $('update-step-2').classList.add('hidden');
     $('update-step-3').classList.add('hidden');
     $('update-step-1').classList.remove('hidden');
@@ -2043,9 +2072,7 @@ async function saveUpdate(){
     });
     goHome();
   } catch(e){
-    showLoading('Gagal', e.message || 'Update gagal.', 'error');
-    await sleep(2000);
-    hideLoading();
+    await showLoadingAndWait('Gagal', e.message || 'Update gagal.', 'error');
   } finally { setBusy(btn, false); }
 }
 
@@ -2061,7 +2088,7 @@ function optionalFile(file){
 }
 
 /* ============================================================
- * LIVENESS — V3.6.0
+ * LIVENESS
  * ========================================================== */
 async function runLiveness(videoId, statusId, challenge, uiPrefix){
   const video = $(videoId);
@@ -2139,11 +2166,8 @@ async function runLiveness(videoId, statusId, challenge, uiPrefix){
   }
   initLivenessStepDots(uiPrefix, challenge.length);
   updateLivenessUI(uiPrefix, 0, 'Baca instruksi...', current, challenge.length);
-
-  // Reset status sebelum intro
   $(statusId).textContent = 'Bersiap...';
 
-  // INTRO PERTAMA
   showIntroOverlay();
   const introStart = performance.now();
   while(performance.now() - introStart < INTRO_MS){
@@ -2391,23 +2415,18 @@ async function captureProbe(videoId){
 }
 
 async function verifyCurrentFace(videoId, statusId, uiPrefix){
-  // Asumsi: faceSession sudah ada & cache sudah di-download
   if(!faceSession) throw new Error('Face session belum dibuat.');
   if(!sessionTemplates || !sessionTemplates.length) throw new Error('Cache biometrik belum siap.');
 
-  // Jalankan liveness dengan cek identitas per-pose
   const live = await runLiveness(videoId, statusId, faceSession.challenge, uiPrefix);
 
-  // Pastikan ada identitas yang ter-track
   if (!sessionMatchedOpaqueId) {
     clearBiometricCache();
     throw new Error('Identitas tidak berhasil diverifikasi.');
   }
 
-  // Capture probe final untuk server verification
   const probe = await captureProbe(videoId);
 
-  // Kirim ke server dengan opaque_id
   try{
     faceVerification = await api('face_verify_with_cache', {
       face_session_id: faceSession.face_session_id,
@@ -2425,9 +2444,7 @@ async function verifyCurrentFace(videoId, statusId, uiPrefix){
     throw e;
   }
 
-  // Wipe cache dari memory
   clearBiometricCache();
-
   return faceVerification;
 }
 
